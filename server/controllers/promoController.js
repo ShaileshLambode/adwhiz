@@ -33,88 +33,85 @@ async function removeLogoBackground(logoBuffer) {
 }
 
 
-// ─── SVG-based body text overlay (NO canvas package needed) ──────────────────
 /**
  * Renders the body copy (tagline, body message, footer slogan) as an SVG overlay
- * on the LEFT PANEL of the poster using Sharp's built-in SVG support.
- *
- * This is how we show multi-line text — Recraft text_layout only handles
- * short display words (HAPPY DIWALI), NOT paragraph sentences.
+ * on the LEFT PANEL of the poster, including a semi-transparent dark background 
+ * and a white logo card/badge, using Sharp's built-in SVG support.
  *
  * @param {Object} textData - { tagline, body, footer, website, email }
  * @param {number} imgWidth - Image width in px
  * @param {number} imgHeight - Image height in px
- * @returns {Buffer} PNG buffer from SVG
+ * @param {number} logoW - Logo width in px
+ * @param {number} logoH - Logo height in px
+ * @returns {Buffer} SVG buffer
  */
-function buildTextOverlaySVG(textData, imgWidth, imgHeight) {
+function buildTextOverlaySVG(textData, imgWidth, imgHeight, logoW, logoH) {
   const leftPanelWidth = Math.floor(imgWidth * 0.46); // Left 46%
-  const panelX = 0;
 
   // Escape XML special characters
   const esc = (s) => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
   // Font sizes scaled to image size
-  const taglineSize = Math.floor(imgWidth * 0.028);  // ~29px at 1024
-  const bodySize    = Math.floor(imgWidth * 0.020);  // ~20px at 1024
-  const footerSize  = Math.floor(imgWidth * 0.019);  // ~19px at 1024
-  const contactSize = Math.floor(imgWidth * 0.017);  // ~17px at 1024
+  const taglineSize = Math.floor(imgWidth * 0.026);  
+  const bodySize    = Math.floor(imgWidth * 0.019);  
+  const footerSize  = Math.floor(imgWidth * 0.018);  
+  const contactSize = Math.floor(imgWidth * 0.017);  
 
-  // Tagline — wrap at ~28 chars per line
+  // Wrap text lines
   const taglineLines = wrapText(textData.tagline || '', 28);
-  // Body — wrap at ~32 chars per line
   const bodyLines = wrapText(textData.body || '', 32);
-
-  // Y positions — below where Recraft renders HEADLINE + DIWALI! text
-  // Recraft puts headline at y~0.18..0.30 of image, so start body content at 0.38
-  let currentY = Math.floor(imgHeight * 0.38);
-  const lineGap = bodySize * 1.55;
+  const footerLines = wrapText(textData.footer || '', 32);
 
   let textElements = '';
 
-  // Tagline
-  if (taglineLines.length) {
-    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}" 
-      font-family="Arial, sans-serif" font-size="${taglineSize}" font-weight="600"
-      fill="#F7C948" text-anchor="middle" opacity="0.95">${esc(taglineLines[0])}</text>`;
-    currentY += taglineSize * 1.6;
-    if (taglineLines[1]) {
-      textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}" 
-        font-family="Arial, sans-serif" font-size="${taglineSize}" font-weight="600"
-        fill="#F7C948" text-anchor="middle" opacity="0.95">${esc(taglineLines[1])}</text>`;
-      currentY += taglineSize * 1.6;
-    }
+  // 1. Draw the left panel semi-transparent dark overlay background (masks out underlying clutter)
+  textElements += `<rect x="0" y="0" width="${leftPanelWidth}" height="${imgHeight}" fill="rgba(22, 11, 33, 0.72)" />`;
+
+  // 2. Draw the logo background card in top-left (ensures high contrast for dark or transparent logos)
+  if (logoW && logoH) {
+    textElements += `<rect x="20" y="20" width="${logoW + 24}" height="${logoH + 16}" rx="8" fill="#FFFFFF" />`;
   }
 
-  // Spacer
+  // 3. Stacking the text slots
+  let currentY = Math.floor(imgHeight * 0.36);
+  const lineGap = bodySize * 1.5;
+
+  // Tagline
+  taglineLines.forEach(line => {
+    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}" 
+      font-family="system-ui, -apple-system, sans-serif" font-size="${taglineSize}" font-weight="700"
+      fill="#F7C948" text-anchor="middle">${esc(line)}</text>`;
+    currentY += taglineSize * 1.5;
+  });
+  
   currentY += bodySize * 0.8;
 
   // Body copy
   bodyLines.forEach(line => {
     textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}"
-      font-family="Arial, sans-serif" font-size="${bodySize}" font-weight="400"
-      fill="#FFFFFF" text-anchor="middle" opacity="0.88">${esc(line)}</text>`;
+      font-family="system-ui, -apple-system, sans-serif" font-size="${bodySize}" font-weight="400"
+      fill="#FFFFFF" text-anchor="middle" opacity="0.90">${esc(line)}</text>`;
     currentY += lineGap;
   });
 
-  // ── Bottom contact strip ──────────────────────────────────────────────────
-  // Footer slogan
-  const footerY = Math.floor(imgHeight * 0.88);
-  const footerLines = wrapText(textData.footer || '', 36);
-  footerLines.forEach((line, idx) => {
-    textElements += `<text x="${imgWidth / 2}" y="${footerY + idx * (footerSize * 1.4)}"
-      font-family="Arial, sans-serif" font-size="${footerSize}" font-weight="500"
-      fill="#FFFFFF" text-anchor="middle" opacity="0.85">${esc(line)}</text>`;
+  // Footer slogan (stacked inside the left panel above the bottom bar to avoid overlapping with right panel decorations)
+  currentY = Math.floor(imgHeight * 0.76);
+  footerLines.forEach(line => {
+    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}"
+      font-family="system-ui, -apple-system, sans-serif" font-size="${footerSize}" font-weight="600"
+      fill="#F7C948" text-anchor="middle" opacity="0.95">${esc(line)}</text>`;
+    currentY += footerSize * 1.5;
   });
 
-  // Website + email contact bar at very bottom
-  const contactBarY = imgHeight - Math.floor(imgHeight * 0.065);
+  // 4. Contact bar at the very bottom
+  const contactBarHeight = Math.floor(imgHeight * 0.08);
+  const contactBarY = imgHeight - contactBarHeight;
   const contactText = [textData.website, textData.email].filter(Boolean).join('  |  ');
+  
   textElements += `
-    <rect x="0" y="${imgHeight - Math.floor(imgHeight * 0.08)}" 
-      width="${imgWidth}" height="${Math.floor(imgHeight * 0.08)}" 
-      fill="rgba(0,0,0,0.6)"/>
-    <text x="${imgWidth / 2}" y="${contactBarY}"
-      font-family="Arial, sans-serif" font-size="${contactSize}" font-weight="600"
+    <rect x="0" y="${contactBarY}" width="${imgWidth}" height="${contactBarHeight}" fill="rgba(12, 6, 17, 0.85)"/>
+    <text x="${imgWidth / 2}" y="${contactBarY + Math.floor(contactBarHeight * 0.60)}"
+      font-family="system-ui, -apple-system, sans-serif" font-size="${contactSize}" font-weight="600"
       fill="#FFFFFF" text-anchor="middle">${esc(contactText)}</text>`;
 
   const svg = `<svg width="${imgWidth}" height="${imgHeight}" xmlns="http://www.w3.org/2000/svg">
@@ -252,9 +249,11 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
   const { width: imgWidth, height: imgHeight } = baseMetadata;
 
   // ── Resize logo to 18% of image width ────────────────────────────────────
-  const resizedLogoBuffer = await sharp(processedLogoBuffer)
-    .resize({ width: Math.round(imgWidth * 0.18) })
-    .toBuffer();
+  const resizedLogo = sharp(processedLogoBuffer).resize({ width: Math.round(imgWidth * 0.18) });
+  const logoMetadata = await resizedLogo.metadata();
+  const logoW = logoMetadata.width;
+  const logoH = logoMetadata.height;
+  const resizedLogoBuffer = await resizedLogo.toBuffer();
 
   // ── Build text overlay SVG for tagline, body, footer (NOT Recraft text_layout) ─
   const taglineInput  = textInputs.find(ti => ti.id === 'tagline');
@@ -272,14 +271,16 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
       email:   emailInput   ? emailInput.value   : '',
     },
     imgWidth,
-    imgHeight
+    imgHeight,
+    logoW,
+    logoH
   );
 
   // ── Composite: base → SVG text overlay → logo ────────────────────────────
   const finalImageBuffer = await sharp(baseImageBuffer)
     .composite([
       { input: svgOverlayBuffer, top: 0, left: 0 },      // text overlay (tagline, body, footer, contact)
-      { input: resizedLogoBuffer, top: 28, left: 28 },    // brand logo top-left
+      { input: resizedLogoBuffer, top: 28, left: 32 },    // brand logo top-left (centered in the white card)
     ])
     .jpeg({ quality: 92 })
     .toBuffer();
