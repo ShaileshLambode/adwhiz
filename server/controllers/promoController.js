@@ -3,11 +3,12 @@ const axios = require("axios");
 const sharp = require("sharp");
 const streamifier = require("streamifier");
 const path = require("path");
+const { createCanvas } = require("canvas");
 
 const PromoPost = require("../models/PromoPost");
 const ImageTemplate = require("../models/ImageTemplate");
 const Logo = require("../models/Logo");
-const { buildPrompt, hexToRgb } = require("../utils/promptBuilder");
+const { buildPrompt, hexToRgb, buildTextLayoutEntries } = require("../utils/promptBuilder");
 
 
 /**
@@ -63,6 +64,33 @@ async function removeLogoBackground(logoBuffer) {
   }
 }
 
+/**
+ * Renders a footer bar (website + email) as a PNG buffer
+ * @param {string} website
+ * @param {string} email
+ * @param {number} imageWidth
+ * @returns {Buffer} PNG buffer of the footer strip
+ */
+function renderFooterStrip(website, email, imageWidth) {
+  const height = Math.max(Math.floor(imageWidth * 0.07), 40); // 7% of image width, min 40px
+  const canvas = createCanvas(imageWidth, height);
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillRect(0, 0, imageWidth, height);
+
+  // Text
+  const fontSize = Math.floor(height * 0.38);
+  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${website}  |  ${email}`, imageWidth / 2, height / 2);
+
+  return canvas.toBuffer('image/png');
+}
+
 
 /**
  * List all active templates for the occasion picker.
@@ -85,7 +113,7 @@ exports.listTemplates = async (req, res) => {
  */
 exports.generatePromo = async (req, res) => {
   try {
-    const { templateId, logoId, textInputs, size } = req.body;
+    const { templateId, logoId, textInputs, size, stylePreset } = req.body;
     const userId = req.user.id;
 
     // Validate inputs
@@ -106,34 +134,36 @@ exports.generatePromo = async (req, res) => {
 
     const logoImageUrl = logoDoc.images.url;
 
-    // Build Recraft V3 payload with text_layout controls
-    const prompt = buildPrompt(template, textInputs, logoDoc);
+    // Build Recraft V3 payload with text_layout controls (except website and email)
+    const prompt = buildPrompt(template, logoDoc);
     console.log("Promo generation prompt:", prompt);
 
     // Build text_layout from template bbox + user text inputs
-    const textLayoutControls = textInputs
-      .filter(slot => slot.value && slot.value.trim())
-      .map(slot => {
-        const templateSlot = template.textSlots.find(t => t.id === slot.id);
-        if (!templateSlot || !templateSlot.bbox) return null;
-        return {
-          text: slot.value,
-          bbox: templateSlot.bbox
-        };
-      })
-      .filter(Boolean);
+    const textLayoutControls = [];
+    for (const slot of template.textSlots) {
+      if (slot.id === "website" || slot.id === "email") {
+        continue;
+      }
+      const userSlot = textInputs.find(ti => ti.id === slot.id);
+      const userText = userSlot ? userSlot.value : slot.defaultText || "";
+      if (userText && userText.trim()) {
+        const entries = buildTextLayoutEntries(userText, slot.bbox);
+        textLayoutControls.push(...entries);
+      }
+    }
 
     // Build color controls from template palette
     const colorControls = template.colorPalette
       .filter(hex => hex && hex.trim())
-      .map(hex => ({ rgb: hexToRgb(hex) }));
+      .map(hex => hexToRgb(hex));
 
     const imageSize = size || template.aspectRatio || "1024x1024";
+    const preset = stylePreset || "realistic_image";
 
     const recraftPayload = {
       prompt,
       model: "recraftv3",
-      style: "realistic_image",
+      style: preset,
       size: imageSize,
       n: 1,
       response_format: "url",
@@ -183,9 +213,21 @@ exports.generatePromo = async (req, res) => {
       .resize({ width: Math.round(baseMetadata.width * 0.18) })
       .toBuffer();
 
-    // Composite logo onto the generated image (top-left with padding)
+    // Render website and email to footer bar using Canvas
+    const websiteSlot = textInputs.find(ti => ti.id === "website");
+    const websiteText = websiteSlot ? websiteSlot.value : "";
+    const emailSlot = textInputs.find(ti => ti.id === "email");
+    const emailText = emailSlot ? emailSlot.value : "";
+
+    const footerHeight = Math.floor(baseMetadata.width * 0.07);
+    const footerBuffer = renderFooterStrip(websiteText || "", emailText || "", baseMetadata.width);
+
+    // Composite logo and footer strip onto the generated image
     const finalImageBuffer = await baseImage
-      .composite([{ input: resizedLogoBuffer, top: 28, left: 28 }])
+      .composite([
+        { input: resizedLogoBuffer, top: 28, left: 28 },
+        { input: footerBuffer, top: baseMetadata.height - footerHeight, left: 0 }
+      ])
       .jpeg({ quality: 92 })
       .toBuffer();
 
@@ -359,6 +401,7 @@ exports.regeneratePromo = async (req, res) => {
       logoId = existingPost.logo,
       textInputs = existingPost.textInputs,
       size = existingPost.size,
+      stylePreset
     } = req.body;
 
     // Fetch template and logo
@@ -374,28 +417,33 @@ exports.regeneratePromo = async (req, res) => {
 
     const logoImageUrl = logoDoc.images.url;
 
-    // Build prompt and payload (same as generatePromo)
-    const prompt = buildPrompt(template, textInputs, logoDoc);
+    // Build prompt and payload
+    const prompt = buildPrompt(template, logoDoc);
 
-    const textLayoutControls = textInputs
-      .filter(slot => slot.value && slot.value.trim())
-      .map(slot => {
-        const templateSlot = template.textSlots.find(t => t.id === slot.id);
-        if (!templateSlot || !templateSlot.bbox) return null;
-        return { text: slot.value, bbox: templateSlot.bbox };
-      })
-      .filter(Boolean);
+    const textLayoutControls = [];
+    for (const slot of template.textSlots) {
+      if (slot.id === "website" || slot.id === "email") {
+        continue;
+      }
+      const userSlot = textInputs.find(ti => ti.id === slot.id);
+      const userText = userSlot ? userSlot.value : slot.defaultText || "";
+      if (userText && userText.trim()) {
+        const entries = buildTextLayoutEntries(userText, slot.bbox);
+        textLayoutControls.push(...entries);
+      }
+    }
 
     const colorControls = template.colorPalette
       .filter(hex => hex && hex.trim())
-      .map(hex => ({ rgb: hexToRgb(hex) }));
+      .map(hex => hexToRgb(hex));
 
     const imageSize = size || template.aspectRatio || "1024x1024";
+    const preset = stylePreset || "realistic_image";
 
     const recraftPayload = {
       prompt,
       model: "recraftv3",
-      style: "realistic_image",
+      style: preset,
       size: imageSize,
       n: 1,
       response_format: "url",
@@ -439,8 +487,20 @@ exports.regeneratePromo = async (req, res) => {
       .resize({ width: Math.round(baseMetadata.width * 0.18) })
       .toBuffer();
 
+    // Render website and email to footer bar using Canvas
+    const websiteSlot = textInputs.find(ti => ti.id === "website");
+    const websiteText = websiteSlot ? websiteSlot.value : "";
+    const emailSlot = textInputs.find(ti => ti.id === "email");
+    const emailText = emailSlot ? emailSlot.value : "";
+
+    const footerHeight = Math.floor(baseMetadata.width * 0.07);
+    const footerBuffer = renderFooterStrip(websiteText || "", emailText || "", baseMetadata.width);
+
     const finalImageBuffer = await baseImage
-      .composite([{ input: resizedLogoBuffer, top: 28, left: 28 }])
+      .composite([
+        { input: resizedLogoBuffer, top: 28, left: 28 },
+        { input: footerBuffer, top: baseMetadata.height - footerHeight, left: 0 }
+      ])
       .jpeg({ quality: 92 })
       .toBuffer();
 

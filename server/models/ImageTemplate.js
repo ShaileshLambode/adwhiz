@@ -34,10 +34,10 @@ const imageTemplateSchema = new mongoose.Schema({
       default: ""
     },
     bbox: {
-      type: [[Number]],
-      required: true
-      // 4-point polygon: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
-      // coordinates in [0,1] range relative to image dimensions
+      x: { type: Number, required: true },
+      y: { type: Number, required: true },
+      width: { type: Number, required: true },
+      height: { type: Number, required: true }
     }
   }],
   promptTemplate: {

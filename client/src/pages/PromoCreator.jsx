@@ -132,7 +132,8 @@ const PromoCreator = () => {
         templateId: selectedTemplate._id,
         logoId: selectedBusiness._id,
         textInputs: textInputs.map(input => ({ id: input.id, value: input.value })),
-        size: aspectRatio
+        size: aspectRatio,
+        stylePreset: stylePreset
       };
 
       const res = await axios.post(`${BACKEND_URL}/api/promo/generate`, payload, {

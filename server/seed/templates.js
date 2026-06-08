@@ -20,40 +20,40 @@ const templates = [
         id: "headline",
         label: "Festival Headline",
         defaultText: "Happy Holi!",
-        bbox: [[0.02, 0.08], [0.45, 0.08], [0.45, 0.22], [0.02, 0.22]]
+        bbox: { x: 0.05, y: 0.18, width: 0.45, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Tagline / Subheading",
         defaultText: "Festival of Colors",
-        bbox: [[0.02, 0.23], [0.45, 0.23], [0.45, 0.32], [0.02, 0.32]]
+        bbox: { x: 0.05, y: 0.31, width: 0.45, height: 0.08 }
       },
       {
         id: "body",
         label: "Message / Body Copy",
         defaultText: "May this Holi fill your life with vibrant colors of joy, happiness, love and success.",
-        bbox: [[0.02, 0.34], [0.45, 0.34], [0.45, 0.55], [0.02, 0.55]]
+        bbox: { x: 0.05, y: 0.40, width: 0.45, height: 0.20 }
       },
       {
         id: "footer",
         label: "Footer Slogan",
         defaultText: "Bura Na Mano, Holi Hai!",
-        bbox: [[0.05, 0.88], [0.95, 0.88], [0.95, 0.97], [0.05, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "A vibrant and colorful {occasionName} festival marketing poster for a business called \"{businessName}\". The scene should include splashes of colored powder (gulal), festive decorations, Indian cultural elements, and a joyful celebratory atmosphere. Professional marketing layout with clear zones for text placement. High quality, photorealistic style with warm festive lighting."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   },
   {
     name: "Happy Bhai Dooj",
@@ -65,40 +65,40 @@ const templates = [
         id: "headline",
         label: "Festival Headline",
         defaultText: "Happy Bhai Dooj!",
-        bbox: [[0.02, 0.08], [0.45, 0.08], [0.45, 0.22], [0.02, 0.22]]
+        bbox: { x: 0.05, y: 0.18, width: 0.45, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Tagline / Subheading",
         defaultText: "A Bond of Love That Lasts Forever",
-        bbox: [[0.02, 0.23], [0.45, 0.23], [0.45, 0.32], [0.02, 0.32]]
+        bbox: { x: 0.05, y: 0.31, width: 0.45, height: 0.08 }
       },
       {
         id: "body",
         label: "Message / Body Copy",
         defaultText: "On this special day, let's celebrate the beautiful bond of love, trust and protection.",
-        bbox: [[0.02, 0.34], [0.45, 0.34], [0.45, 0.55], [0.02, 0.55]]
+        bbox: { x: 0.05, y: 0.40, width: 0.45, height: 0.20 }
       },
       {
         id: "footer",
         label: "Footer Slogan",
         defaultText: "Celebrate the Bond. Gift Love. Create Memories.",
-        bbox: [[0.05, 0.88], [0.95, 0.88], [0.95, 0.97], [0.05, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "A warm and festive {occasionName} celebration marketing poster for \"{businessName}\". Include traditional Indian elements like tilak, diya lamps, marigold flowers, gift boxes, and sweets. Show a sibling bonding theme with warm golden lighting, traditional Indian decor and a professional poster layout with clear text zones."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   },
   {
     name: "Happy Diwali",
@@ -110,40 +110,40 @@ const templates = [
         id: "headline",
         label: "Festival Headline",
         defaultText: "Happy Diwali!",
-        bbox: [[0.02, 0.08], [0.45, 0.08], [0.45, 0.22], [0.02, 0.22]]
+        bbox: { x: 0.05, y: 0.18, width: 0.45, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Tagline / Subheading",
         defaultText: "Festival of Lights",
-        bbox: [[0.02, 0.23], [0.45, 0.23], [0.45, 0.32], [0.02, 0.32]]
+        bbox: { x: 0.05, y: 0.31, width: 0.45, height: 0.08 }
       },
       {
         id: "body",
         label: "Message / Body Copy",
         defaultText: "May the festival of lights bring brightness and joy to your life. Wishing you a prosperous Diwali!",
-        bbox: [[0.02, 0.34], [0.45, 0.34], [0.45, 0.55], [0.02, 0.55]]
+        bbox: { x: 0.05, y: 0.40, width: 0.45, height: 0.20 }
       },
       {
         id: "footer",
         label: "Footer Slogan",
         defaultText: "Light up your world with happiness and prosperity.",
-        bbox: [[0.05, 0.88], [0.95, 0.88], [0.95, 0.97], [0.05, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "A magnificent {occasionName} festival marketing poster for \"{businessName}\". Feature glowing diyas, fireworks, rangoli patterns, sparklers, and golden lanterns. Rich purple and gold color theme with luxurious festive atmosphere. Professional marketing layout with designated text placement areas."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   },
   {
     name: "Eid Mubarak",
@@ -155,40 +155,40 @@ const templates = [
         id: "headline",
         label: "Festival Headline",
         defaultText: "Eid Mubarak!",
-        bbox: [[0.02, 0.08], [0.45, 0.08], [0.45, 0.22], [0.02, 0.22]]
+        bbox: { x: 0.05, y: 0.18, width: 0.45, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Tagline / Subheading",
         defaultText: "Blessed Celebrations",
-        bbox: [[0.02, 0.23], [0.45, 0.23], [0.45, 0.32], [0.02, 0.32]]
+        bbox: { x: 0.05, y: 0.31, width: 0.45, height: 0.08 }
       },
       {
         id: "body",
         label: "Message / Body Copy",
         defaultText: "May this Eid bring peace, happiness and prosperity to you and your family. Eid Mubarak!",
-        bbox: [[0.02, 0.34], [0.45, 0.34], [0.45, 0.55], [0.02, 0.55]]
+        bbox: { x: 0.05, y: 0.40, width: 0.45, height: 0.20 }
       },
       {
         id: "footer",
         label: "Footer Slogan",
         defaultText: "Spreading joy and blessings this Eid.",
-        bbox: [[0.05, 0.88], [0.95, 0.88], [0.95, 0.97], [0.05, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "An elegant {occasionName} celebration marketing poster for \"{businessName}\". Include crescent moon, mosque silhouette, ornate lanterns, and intricate Islamic geometric patterns. Green and gold color theme with a serene and celebratory atmosphere. Professional marketing layout."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   },
   {
     name: "Independence Day",
@@ -200,40 +200,40 @@ const templates = [
         id: "headline",
         label: "Headline",
         defaultText: "Happy Independence Day!",
-        bbox: [[0.02, 0.08], [0.55, 0.08], [0.55, 0.22], [0.02, 0.22]]
+        bbox: { x: 0.05, y: 0.18, width: 0.50, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Tagline / Subheading",
         defaultText: "Jai Hind — Proud to be Indian",
-        bbox: [[0.02, 0.23], [0.55, 0.23], [0.55, 0.32], [0.02, 0.32]]
+        bbox: { x: 0.05, y: 0.31, width: 0.50, height: 0.08 }
       },
       {
         id: "body",
         label: "Message / Body Copy",
         defaultText: "Let us celebrate the spirit of freedom and unity. Together we rise, together we shine.",
-        bbox: [[0.02, 0.34], [0.50, 0.34], [0.50, 0.55], [0.02, 0.55]]
+        bbox: { x: 0.05, y: 0.40, width: 0.50, height: 0.20 }
       },
       {
         id: "footer",
         label: "Footer Slogan",
         defaultText: "Freedom in every stride. Pride in every heart.",
-        bbox: [[0.05, 0.88], [0.95, 0.88], [0.95, 0.97], [0.05, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "A patriotic {occasionName} marketing poster for \"{businessName}\". Feature the Indian tricolor flag, Ashoka Chakra, national monuments like India Gate or Red Fort, doves of peace, and patriotic decorations. Saffron, white and green color theme. Bold and inspiring professional layout."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   },
   {
     name: "Mega Sale",
@@ -245,40 +245,40 @@ const templates = [
         id: "headline",
         label: "Sale Headline",
         defaultText: "MEGA SALE!",
-        bbox: [[0.05, 0.05], [0.60, 0.05], [0.60, 0.25], [0.05, 0.25]]
+        bbox: { x: 0.05, y: 0.18, width: 0.50, height: 0.12 }
       },
       {
         id: "tagline",
         label: "Offer Details",
         defaultText: "Up to 50% OFF on all products",
-        bbox: [[0.05, 0.26], [0.55, 0.26], [0.55, 0.38], [0.05, 0.38]]
+        bbox: { x: 0.05, y: 0.31, width: 0.50, height: 0.08 }
       },
       {
         id: "body",
         label: "Promo Message",
         defaultText: "Don't miss out on our biggest sale of the year! Limited time offer on premium products.",
-        bbox: [[0.02, 0.40], [0.50, 0.40], [0.50, 0.58], [0.02, 0.58]]
+        bbox: { x: 0.05, y: 0.40, width: 0.50, height: 0.20 }
       },
       {
         id: "footer",
         label: "Call to Action",
         defaultText: "Shop Now — Limited Time Only!",
-        bbox: [[0.10, 0.88], [0.90, 0.88], [0.90, 0.97], [0.10, 0.97]]
+        bbox: { x: 0.05, y: 0.88, width: 0.90, height: 0.08 }
       },
       {
         id: "website",
         label: "Website URL",
         defaultText: "www.yourbusiness.com",
-        bbox: [[0.55, 0.02], [0.98, 0.02], [0.98, 0.05], [0.55, 0.05]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       },
       {
         id: "email",
         label: "Email Address",
         defaultText: "contact@yourbusiness.com",
-        bbox: [[0.55, 0.055], [0.98, 0.055], [0.98, 0.085], [0.55, 0.085]]
+        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
       }
     ],
-    promptTemplate: "A high-energy commercial sale promotion poster for \"{businessName}\". Feature bold sale graphics, shopping bags, price tags, discount badges, confetti, and exciting retail atmosphere. Red and gold color scheme with urgency-driven professional marketing layout."
+    promptTemplate: "Flat graphic design marketing poster background for {occasionName}."
   }
 ];
 
