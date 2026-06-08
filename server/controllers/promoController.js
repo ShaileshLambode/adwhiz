@@ -190,16 +190,20 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
   const imageSize = size || template.aspectRatio || '1024x1024';
 
   // ── FIX: Map frontend preset labels to valid Recraft V3 style strings ──────
-  // Frontend may send "minimalist", "vintage_poster", "three_d_render" — these are INVALID
+  // Map any custom or legacy styles to valid Recraft V3 API style keys
   const VALID_STYLES = {
-    'realistic_image':       'digital_illustration',       // override: realistic creates photos
-    'digital_illustration':  'digital_illustration',
-    'minimalist':            'digital_illustration/flat_design',
-    'vintage_poster':        'digital_illustration/engraving',
-    'three_d_render':        'digital_illustration/2d_art_poster',
-    'flat_design':           'digital_illustration/flat_design',
+    'realistic_image':                    'digital_illustration',
+    'digital_illustration':               'digital_illustration',
+    'digital_illustration/flat_design':   'digital_illustration',
+    'digital_illustration/2d_art_poster': 'digital_illustration/2d_art_poster',
+    'digital_illustration/engraving':    'digital_illustration/engraving_color',
+    'digital_illustration/hand_drawn':   'digital_illustration/hand_drawn',
+    'minimalist':                         'digital_illustration',
+    'vintage_poster':                     'digital_illustration/engraving_color',
+    'three_d_render':                     'digital_illustration/handmade_3d',
+    'flat_design':                        'digital_illustration',
   };
-  const recraftStyle = VALID_STYLES[stylePreset] || 'digital_illustration/flat_design';
+  const recraftStyle = VALID_STYLES[stylePreset] || 'digital_illustration';
 
   // ── Recraft API Payload ───────────────────────────────────────────────────
   // CRITICAL: text_layout is a TOP-LEVEL parameter — NOT inside controls{}

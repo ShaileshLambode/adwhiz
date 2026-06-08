@@ -184,14 +184,9 @@ const PromoCreator = () => {
   // Recraft preset options
   const stylePresets = [
     {
-      value: "digital_illustration/flat_design",
+      value: "digital_illustration",
       label: "Flat Design (Recommended)",
       description: "Clean flat 2D graphic design — best for festival posters"
-    },
-    {
-      value: "digital_illustration",
-      label: "Digital Illustration",
-      description: "Modern illustrated style with rich colors"
     },
     {
       value: "digital_illustration/2d_art_poster",
@@ -199,7 +194,7 @@ const PromoCreator = () => {
       description: "Bold poster art with strong graphic elements"
     },
     {
-      value: "digital_illustration/engraving",
+      value: "digital_illustration/engraving_color",
       label: "Vintage Style",
       description: "Classic detailed texture, retro feel"
     },
@@ -207,6 +202,11 @@ const PromoCreator = () => {
       value: "digital_illustration/hand_drawn",
       label: "Hand Drawn",
       description: "Warm artistic hand-illustrated style"
+    },
+    {
+      value: "digital_illustration/handmade_3d",
+      label: "3D Render",
+      description: "CGI model style, depth, and rich highlights"
     },
   ];
 
