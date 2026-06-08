@@ -183,11 +183,31 @@ const PromoCreator = () => {
 
   // Recraft preset options
   const stylePresets = [
-    { value: "realistic_image", label: "Realistic Photo", description: "Photorealistic style with natural lighting" },
-    { value: "digital_illustration", label: "Digital Illustration", description: "Modern, clean vector art and graphic elements" },
-    { value: "minimalist", label: "Minimalist Style", description: "Clean lines, empty space, and minimal palette" },
-    { value: "vintage_poster", label: "Vintage Poster", description: "Retro design, textures, and classic feel" },
-    { value: "three_d_render", label: "3D Render", description: "CGI model style, depth, and rich highlights" }
+    {
+      value: "digital_illustration/flat_design",
+      label: "Flat Design (Recommended)",
+      description: "Clean flat 2D graphic design — best for festival posters"
+    },
+    {
+      value: "digital_illustration",
+      label: "Digital Illustration",
+      description: "Modern illustrated style with rich colors"
+    },
+    {
+      value: "digital_illustration/2d_art_poster",
+      label: "Art Poster Style",
+      description: "Bold poster art with strong graphic elements"
+    },
+    {
+      value: "digital_illustration/engraving",
+      label: "Vintage Style",
+      description: "Classic detailed texture, retro feel"
+    },
+    {
+      value: "digital_illustration/hand_drawn",
+      label: "Hand Drawn",
+      description: "Warm artistic hand-illustrated style"
+    },
   ];
 
   return (
