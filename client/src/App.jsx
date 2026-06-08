@@ -17,9 +17,11 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import FavoriteList from './pages/FavoriteList'
+import PromoCreator from './pages/PromoCreator'
+import PromoGallery from './pages/PromoGallery'
 
 
-const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist']
+const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-gallery']
 
 function AppLayout() {
   const location = useLocation()
@@ -43,6 +45,8 @@ function AppLayout() {
             <Route path="/generatedcontent" element={<ProtectedRoute><GeneratedContent /></ProtectedRoute>} />
             <Route path="/postReady" element={<ProtectedRoute><PostReady /></ProtectedRoute>} />
             <Route path="/favoritelist" element={<ProtectedRoute><FavoriteList /></ProtectedRoute>} />
+            <Route path="/promo-creator" element={<ProtectedRoute><PromoCreator /></ProtectedRoute>} />
+            <Route path="/promo-gallery" element={<ProtectedRoute><PromoGallery /></ProtectedRoute>} />
           </Routes>
         </div>
         <ToastContainer />

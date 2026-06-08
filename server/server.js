@@ -5,6 +5,7 @@ const cors = require("cors");
 const UserRoutes = require("./routes/UserRoutes");
 const LogoRoutes = require("./routes/LogoRoutes");
 const postRoutes = require("./routes/postRoutes");
+const promoRoutes = require("./routes/promoRoutes");
 const { connectDB } = require("./config/db");
 const path = require('path');
 const app = express();
@@ -27,6 +28,9 @@ app.use("/api/logo", LogoRoutes);
 
 // Generate Post
 app.use("/api/post", postRoutes);
+
+// Promotional Image Generation
+app.use("/api/promo", promoRoutes);
 
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`) || 4000);

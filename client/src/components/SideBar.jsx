@@ -30,6 +30,14 @@ const SideBar = () => {
                         Generated Content
                     </NavLink>
 
+                    <NavLink to="/promo-creator" className="flex items-center gap-3 text-md p-3">
+                        Promo Creator
+                    </NavLink>
+
+                    <NavLink to="/promo-gallery" className="flex items-center gap-3 text-md p-3">
+                        Promo Gallery
+                    </NavLink>
+
                     <NavLink to="/favoritelist" className="flex items-center gap-3 text-md p-3">
                         Favorite List
                     </NavLink>
