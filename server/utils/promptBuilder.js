@@ -22,7 +22,7 @@ function hexToRgb(hex) {
 }
 
 /**
- * Build a structured prompt for Recraft V3 festival/promotional hero background scene.
+ * Build a structured prompt for Recraft V4 festival/promotional hero background scene.
  * @param {Object} template - The ImageTemplate document
  * @returns {string} The constructed prompt string
  */

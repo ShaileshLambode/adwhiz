@@ -96,22 +96,40 @@ async function extractLogoColors(logoBuffer) {
   }
 }
 
+function getStylePromptSuffix(stylePreset) {
+  switch (stylePreset) {
+    case 'realistic_image':
+      return ', realistic image style';
+    case 'digital_illustration':
+    case 'digital_illustration/flat_design':
+    case 'flat_design':
+      return ', clean flat 2D vector digital illustration style';
+    case 'digital_illustration/2d_art_poster':
+      return ', bold 2D art poster style';
+    case 'digital_illustration/engraving':
+    case 'digital_illustration/engraving_color':
+    case 'vintage_poster':
+      return ', retro vintage engraving illustration style';
+    case 'digital_illustration/hand_drawn':
+      return ', warm hand-drawn sketch illustration style';
+    case 'three_d_render':
+    case 'digital_illustration/handmade_3d':
+      return ', handmade 3D render, clay style, CGI 3D model';
+    case 'minimalist':
+      return ', minimalist digital graphic design style';
+    default:
+      return ', digital illustration style';
+  }
+}
+
 // ─── Core generation logic (composite vertical pipeline) ───────────────────
 async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt }) {
   // 1. Build Recraft style and payload
-  const VALID_STYLES = {
-    'realistic_image':                    'digital_illustration',
-    'digital_illustration':               'digital_illustration',
-    'digital_illustration/flat_design':   'digital_illustration',
-    'digital_illustration/2d_art_poster': 'digital_illustration/2d_art_poster',
-    'digital_illustration/engraving':     'digital_illustration/engraving_color',
-    'digital_illustration/hand_drawn':    'digital_illustration/hand_drawn',
-    'minimalist':                         'digital_illustration',
-    'vintage_poster':                     'digital_illustration/engraving_color',
-    'three_d_render':                     'digital_illustration/handmade_3d',
-    'flat_design':                        'digital_illustration',
-  };
-  const recraftStyle = VALID_STYLES[stylePreset] || 'digital_illustration';
+  let finalPrompt = recraftScenePrompt || buildPrompt(template);
+  const styleSuffix = getStylePromptSuffix(stylePreset);
+  if (styleSuffix && !finalPrompt.toLowerCase().includes(styleSuffix.toLowerCase().substring(2))) {
+    finalPrompt += styleSuffix;
+  }
 
   // Download logo first to extract colors
   const logoBuffer = await axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
@@ -123,10 +141,9 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
     : template.colorPalette;
 
   const recraftPayload = {
-    prompt: recraftScenePrompt || buildPrompt(template),
-    model: 'recraftv3',
-    style: recraftStyle,
-    size: '1024x1536', // Use portrait hero image for best cropping
+    prompt: finalPrompt,
+    model: 'recraftv4',
+    size: '2:3', // Use portrait hero image for best cropping
     n: 1,
     response_format: 'url',
     controls: {

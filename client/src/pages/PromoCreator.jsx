@@ -253,7 +253,7 @@ const PromoCreator = () => {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    setGenerationProgress("Contacting Recraft V3 scene generator...");
+    setGenerationProgress("Contacting Recraft V4 scene generator...");
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -705,7 +705,7 @@ const PromoCreator = () => {
           {currentStep === 3 && (
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-4">Style & Dimensions</h2>
-              <p className="text-sm text-gray-500 mb-6">Fine-tune the output format and Recraft V3 graphic render model preset.</p>
+              <p className="text-sm text-gray-500 mb-6">Fine-tune the output format and Recraft V4 graphic render model preset.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Size Selector */}
@@ -735,7 +735,7 @@ const PromoCreator = () => {
 
                 {/* Style Presets */}
                 <div>
-                  <h3 className="block text-sm font-semibold text-gray-700 mb-3">Recraft V3 Render Style</h3>
+                  <h3 className="block text-sm font-semibold text-gray-700 mb-3">Recraft V4 Render Style</h3>
                   <div className="space-y-3">
                     {stylePresets.map((preset) => (
                       <div 

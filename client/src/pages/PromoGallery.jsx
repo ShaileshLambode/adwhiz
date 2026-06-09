@@ -97,7 +97,7 @@ const PromoGallery = () => {
       <div className="flex flex-col mb-8 gap-2">
         <h2 className="text-2xl sm:text-3xl font-bold mb-2">Promotional & Festival Banners</h2>
         <p className="text-gray-600 max-w-2xl">
-          Browse and manage your AI-generated festival posters. Designed using advanced Recraft V3 text layouts and custom branding.
+          Browse and manage your AI-generated festival posters. Designed using advanced Recraft V4 text layouts and custom branding.
         </p>
       </div>
 

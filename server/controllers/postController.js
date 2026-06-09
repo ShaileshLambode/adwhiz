@@ -11,37 +11,37 @@ const path = require("path");
 function getValidSize(postType) {
   switch (postType) {
     case "1024x1024":
-      return "1024x1024";
+      return "1:1";
     case "1365x1024":
-      return "1365x1024";
+      return "4:3";
     case "1024x1365":
-      return "1024x1365";
+      return "3:4";
     case "1536x1024":
-      return "1536x1024";
+      return "3:2";
     case "1024x1536":
-      return "1024x1536";
+      return "2:3";
     case "1820x1024":
-      return "1820x1024";
+      return "16:9";
     case "1024x1820":
-      return "1024x1820";
+      return "9:16";
     case "1024x2048":
-      return "1024x2048";
+      return "1:2";
     case "2048x1024":
-      return "2048x1024";
+      return "2:1";
     case "1434x1024":
-      return "1434x1024";
+      return "14:10";
     case "1024x1434":
-      return "1024x1434";
+      return "10:14";
     case "1024x1280":
-      return "1024x1280";
+      return "4:5";
     case "1280x1024":
-      return "1280x1024";
+      return "5:4";
     case "1024x1707":
-      return "1024x1707";
+      return "6:10";
     case "1707x1024":
-      return "1707x1024";
+      return "16:9";
     default:
-      return "1024x1024";
+      return "1:1";
   }
 }
 
@@ -76,8 +76,7 @@ Image should match type: ${postType}. Description: ${description}.`;
     // Send prompt to Recraft API
     const recraftPayload = {
       prompt,
-      style: "realistic_image",
-      model: "recraftv3",
+      model: "recraftv4",
       size: getValidSize(postType),
       n: 1,
       response_format: "url",
@@ -217,8 +216,7 @@ Image should match type: ${postType}. Description: ${description}.`;
     // Send prompt to Recraft API
     const recraftPayload = {
       prompt,
-      style: "realistic_image",
-      model: "recraftv3",
+      model: "recraftv4",
       size: getValidSize(postType),
       n: 1,
       response_format: "url",
