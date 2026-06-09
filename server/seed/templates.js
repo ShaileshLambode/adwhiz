@@ -1,12 +1,7 @@
 /**
- * Seed script — 6 festival templates for AdWhiz Promo Creator.
+ * Seed script — 6 festival templates for AdWhiz Promo Creator (Multi-Zone Layout Redesign).
  *
- * BBOX STRATEGY:
- * - headline slot: left panel, large bbox, 2-3 words only → goes to Recraft text_layout
- * - ALL other slots (tagline, body, footer, website, email): handled by Sharp SVG overlay
- *   Their bboxes are kept for reference but are not sent to Recraft text_layout
- *
- * Run: node seed/templates.js
+ * Run: node server/seed/templates.js
  */
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
@@ -19,46 +14,56 @@ const templates = [
     occasion: 'holi',
     aspectRatio: '1024x1024',
     colorPalette: ['#FF6B35', '#F7C948', '#7B2D8E', '#4CAF50', '#E91E63'],
-    textSlots: [
+    heroContent: {
+      headline: 'Happy Holi!',
+      subheading: 'Festival of Colors',
+      bodyMessage: 'May this Holi fill your life with vibrant colors of joy, happiness, prosperity and success. Wishing you a safe, color-filled and joyful Holi!',
+      closingSlogan: 'Bura na mano, Holi hai! Celebrate with love.',
+      rightBoxQuote: 'Let the vibrant colors of Holi spread love, harmony and endless joy in your hearts. Have a splash of happiness!',
+    },
+    valuesRow: [
+      { icon: '🎨', label: 'ENJOY', sublabel: 'every color splash' },
+      { icon: '❤️', label: 'SPREAD', sublabel: 'love and harmony' },
+      { icon: '✨', label: 'CELEBRATE', sublabel: 'togetherness' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Festival Headline',
-        defaultText: 'Happy Holi!',
-        // Large bbox — 2 words split across left panel top area
-        bbox: { x: 0.05, y: 0.14, width: 0.40, height: 0.14 }
+        icon: '🎨',
+        lines: ['MAY HOLI BRING', 'COLORS OF JOY', 'TO YOUR LIFE.'],
+        highlight: 'HAPPY HOLI! 🎨'
       },
       {
-        id: 'tagline',
-        label: 'Tagline / Subheading',
-        defaultText: 'Festival of Colors',
-        bbox: { x: 0.05, y: 0.31, width: 0.42, height: 0.07 }
+        icon: '🎁',
+        lines: ['CELEBRATE THE', 'COLORS OF LOVE.', 'GIFT MEMORIES.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Message / Body Copy',
-        defaultText: 'May this Holi fill your life with vibrant colors of joy, happiness, love and success. Wishing you a safe and joyful Holi!',
-        bbox: { x: 0.05, y: 0.40, width: 0.42, height: 0.22 }
+        icon: '✨',
+        lines: ['LET YOUR LIFE', 'SHINE AS VIBRANT', 'AS HOLI POWDERS.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Footer Slogan',
-        defaultText: 'Bura Na Mano, Holi Hai!',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Joyful Holi festival scene with vibrant color powder explosions, color bowls, and marigold flower decorations. Flat 2D digital illustration. No text, no people.'
   },
 
   {
@@ -66,45 +71,56 @@ const templates = [
     occasion: 'bhai_dooj',
     aspectRatio: '1024x1024',
     colorPalette: ['#8B0000', '#FFD700', '#B8860B', '#FFFACD', '#DC143C'],
-    textSlots: [
+    heroContent: {
+      headline: 'Happy Bhai Dooj!',
+      subheading: 'A Bond of Love',
+      bodyMessage: 'On this special day, let us celebrate the beautiful bond of love, trust and lifelong protection. Wishing you both happiness, good health and endless joy!',
+      closingSlogan: 'Celebrate the bond of love and protection.',
+      rightBoxQuote: 'May this Bhai Dooj strengthen the sibling connection and bring endless blessings to your life. Have a wonderful day!',
+    },
+    valuesRow: [
+      { icon: '❤️', label: 'LOVE', sublabel: 'that never ends' },
+      { icon: '🛡️', label: 'PROTECT', sublabel: 'each other always' },
+      { icon: '♾️', label: 'BOND', sublabel: 'that grows stronger' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Festival Headline',
-        defaultText: 'Happy Bhai Dooj!',
-        bbox: { x: 0.05, y: 0.14, width: 0.40, height: 0.14 }
+        icon: '❤️',
+        lines: ['MAY BHAI DOOJ', 'BRING PEACE AND', 'JOY TO SIBLINGS.'],
+        highlight: 'HAPPY BHAI DOOJ! ❤️'
       },
       {
-        id: 'tagline',
-        label: 'Tagline / Subheading',
-        defaultText: 'A Bond of Love That Lasts Forever',
-        bbox: { x: 0.05, y: 0.31, width: 0.42, height: 0.07 }
+        icon: '🎁',
+        lines: ['CELEBRATE THE', 'BOND OF TRADITION.', 'GIFT APPRECIATION.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Message / Body Copy',
-        defaultText: 'On this special day, let us celebrate the beautiful bond of love, trust and protection. Wishing you both happiness, good health and endless joy!',
-        bbox: { x: 0.05, y: 0.40, width: 0.42, height: 0.22 }
+        icon: '✨',
+        lines: ['LET YOUR LIFE', 'BE FILLED WITH', 'SWEET MEMORIES.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Footer Slogan',
-        defaultText: 'Celebrate the Bond. Gift Love. Create Memories.',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Warm Bhai Dooj celebration scene with marigold garlands, golden puja thali, tilak items, and traditional motifs. Flat 2D digital illustration. No text, no people, no hands.'
   },
 
   {
@@ -112,45 +128,56 @@ const templates = [
     occasion: 'diwali',
     aspectRatio: '1024x1024',
     colorPalette: ['#FFD700', '#4B0082', '#FF6347', '#FFA500', '#800020'],
-    textSlots: [
+    heroContent: {
+      headline: 'Happy Diwali!',
+      subheading: 'Festival of Lights',
+      bodyMessage: 'May the festival of lights bring brightness and joy to your life. Wishing you and your family a prosperous and happy Diwali!',
+      closingSlogan: 'Light up your world with happiness and prosperity.',
+      rightBoxQuote: 'Let the light of Diwali fill your home with joy, peace and endless blessings. Have a wonderful Diwali!',
+    },
+    valuesRow: [
+      { icon: '🪔', label: 'LIGHT', sublabel: 'that guides always' },
+      { icon: '💛', label: 'JOY', sublabel: 'that never fades' },
+      { icon: '🎆', label: 'CELEBRATE', sublabel: 'every moment' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Festival Headline',
-        defaultText: 'Happy Diwali!',
-        bbox: { x: 0.05, y: 0.14, width: 0.40, height: 0.14 }
+        icon: '🪔',
+        lines: ['MAY DIWALI BRING', 'LIGHT AND JOY', 'TO EVERY HOME.'],
+        highlight: 'HAPPY DIWALI! 🪔'
       },
       {
-        id: 'tagline',
-        label: 'Tagline / Subheading',
-        defaultText: 'Festival of Lights',
-        bbox: { x: 0.05, y: 0.31, width: 0.42, height: 0.07 }
+        icon: '🎁',
+        lines: ['CELEBRATE WITH', 'GIFTS OF LOVE.', 'CREATE MEMORIES.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Message / Body Copy',
-        defaultText: 'May the festival of lights bring brightness and joy to your life. Wishing you and your family a prosperous and happy Diwali!',
-        bbox: { x: 0.05, y: 0.40, width: 0.42, height: 0.22 }
+        icon: '✨',
+        lines: ['LET YOUR LIFE', 'SHINE AS BRIGHT', 'AS DIWALI LIGHTS.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Footer Slogan',
-        defaultText: 'Light up your world with happiness and prosperity.',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Festive Diwali celebration scene with golden diyas, rangoli, sparkles. Flat 2D digital illustration. No text, no people.'
   },
 
   {
@@ -158,45 +185,56 @@ const templates = [
     occasion: 'eid',
     aspectRatio: '1024x1024',
     colorPalette: ['#006400', '#FFD700', '#FFFFFF', '#C0C0C0', '#1B5E20'],
-    textSlots: [
+    heroContent: {
+      headline: 'Eid Mubarak!',
+      subheading: 'Blessed Celebrations',
+      bodyMessage: 'May this Eid bring absolute peace, happiness, and prosperity to you and your family. Wishing you all the blessings of this holy and joyful occasion!',
+      closingSlogan: 'Spreading joy and blessings this Eid.',
+      rightBoxQuote: 'May the light of the crescent moon guide your path to happiness and success. Have a blessed and delightful Eid!',
+    },
+    valuesRow: [
+      { icon: '🌙', label: 'PEACE', sublabel: 'in every heart' },
+      { icon: '🕌', label: 'FAITH', sublabel: 'that shines bright' },
+      { icon: '🤝', label: 'UNITY', sublabel: 'celebrated together' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Festival Headline',
-        defaultText: 'Eid Mubarak!',
-        bbox: { x: 0.05, y: 0.14, width: 0.40, height: 0.14 }
+        icon: '🌙',
+        lines: ['MAY EID BRING', 'PROSPERITY AND', 'JOY TO ALL.'],
+        highlight: 'EID MUBARAK! 🌙'
       },
       {
-        id: 'tagline',
-        label: 'Tagline / Subheading',
-        defaultText: 'Blessed Celebrations',
-        bbox: { x: 0.05, y: 0.31, width: 0.42, height: 0.07 }
+        icon: '🎁',
+        lines: ['GIFT GENEROSITY', 'AND CELEBRATE THE', 'SPIRIT OF GIVING.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Message / Body Copy',
-        defaultText: 'May this Eid bring peace, happiness and prosperity to you and your family. Wishing you all the blessings of this joyful occasion!',
-        bbox: { x: 0.05, y: 0.40, width: 0.42, height: 0.22 }
+        icon: '✨',
+        lines: ['LET YOUR DREAMS', 'BE ILLUMINATED', 'BY DIVINE LIGHT.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Footer Slogan',
-        defaultText: 'Spreading joy and blessings this Eid.',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Eid Mubarak celebration scene with a glowing crescent moon, stars, mosque silhouette, and hanging lanterns. Flat 2D digital illustration. No text, no people.'
   },
 
   {
@@ -204,45 +242,56 @@ const templates = [
     occasion: 'independence_day',
     aspectRatio: '1024x1024',
     colorPalette: ['#FF9933', '#FFFFFF', '#138808', '#000080', '#FFD700'],
-    textSlots: [
+    heroContent: {
+      headline: 'Independence Day!',
+      subheading: 'Jai Hind — Pride of India',
+      bodyMessage: 'Let us celebrate the spirit of freedom, unity and heritage. Together we rise, together we progress. Wishing a happy Independence Day to every proud Indian!',
+      closingSlogan: 'Freedom in every stride. Pride in every heart.',
+      rightBoxQuote: 'May our nation grow stronger and shine brighter on the global stage. Salute to the flag, pride to the people!',
+    },
+    valuesRow: [
+      { icon: '🕊️', label: 'FREEDOM', sublabel: 'in our minds' },
+      { icon: '🇮🇳', label: 'PRIDE', sublabel: 'in our hearts' },
+      { icon: '🤝', label: 'UNITY', sublabel: 'in our diversity' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Headline',
-        defaultText: 'Independence Day!',
-        bbox: { x: 0.05, y: 0.14, width: 0.44, height: 0.14 }
+        icon: '🇮🇳',
+        lines: ['MAY INDIA SHINE', 'WITH FREEDOM AND', 'HARMONY ALWAYS.'],
+        highlight: 'JAI HIND! 🇮🇳'
       },
       {
-        id: 'tagline',
-        label: 'Tagline / Subheading',
-        defaultText: 'Jai Hind — Proud to be Indian',
-        bbox: { x: 0.05, y: 0.31, width: 0.44, height: 0.07 }
+        icon: '🎁',
+        lines: ['CELEBRATE INDIAN', 'CRAFTSMANSHIP AND', 'PREMIUM DESIGN.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Message / Body Copy',
-        defaultText: 'Let us celebrate the spirit of freedom and unity. Together we rise, together we shine. Happy Independence Day to every proud Indian!',
-        bbox: { x: 0.05, y: 0.40, width: 0.44, height: 0.22 }
+        icon: '✨',
+        lines: ['LET US HONOR', 'THE BRAVE HEARTS', 'WHO GAVE US FREEDOM.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Footer Slogan',
-        defaultText: 'Freedom in every stride. Pride in every heart.',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Indian Independence Day scene with a waving tricolor flag, Ashoka Chakra pattern, and marigold flower decorations. Flat 2D digital illustration. No text.'
   },
 
   {
@@ -250,48 +299,58 @@ const templates = [
     occasion: 'generic_sale',
     aspectRatio: '1024x1024',
     colorPalette: ['#FF4444', '#FFC107', '#212121', '#FFFFFF', '#FF6F00'],
-    textSlots: [
+    heroContent: {
+      headline: 'Mega Sale!',
+      subheading: 'Biggest Offer of Year',
+      bodyMessage: 'Do not miss out on our grandest sale of the year! Limited-time offers on all premium bags, wallets, and organizers. Grab yours today before stock runs out!',
+      closingSlogan: 'Shop Now — Limited Time Only!',
+      rightBoxQuote: 'Upgrade your style with up to 50% discount on entire range. Premium accessories built for everyday utility. Shop the collection!',
+    },
+    valuesRow: [
+      { icon: '🏷️', label: 'OFFER', sublabel: 'up to 50% discount' },
+      { icon: '⭐', label: 'QUALITY', sublabel: 'premium materials' },
+      { icon: '🚚', label: 'SHIPPING', sublabel: 'free nationwide' }
+    ],
+    featuresBar: [
+      { icon: '🎁', text: 'THOUGHTFUL GIFTS THAT BRING SMILES.' },
+      { icon: '🛡', text: 'PREMIUM QUALITY. BUILT TO LAST.' },
+      { icon: '❤', text: 'MADE TO DELIGHT. MADE FOR YOU.' },
+      { icon: '🇮🇳', text: 'PROUDLY DESIGNED IN INDIA.' },
+    ],
+    productCategories: [
+      { icon: '🎒', name: 'LAPTOP BAG' },
+      { icon: '👜', name: 'HAND BAG' },
+      { icon: '🎽', name: 'SLING BAG' },
+      { icon: '👛', name: 'WALLET' },
+      { icon: '⌚', name: 'BELT' },
+      { icon: '📁', name: 'ORGANIZER' },
+      { icon: '🗂', name: 'PASSPORT ORGANIZER' },
+    ],
+    footerColumns: [
       {
-        id: 'headline',
-        label: 'Sale Headline',
-        defaultText: 'MEGA SALE!',
-        bbox: { x: 0.05, y: 0.14, width: 0.44, height: 0.14 }
+        icon: '🏷️',
+        lines: ['GRAB DEALS NOW', 'WITH EXCLUSIVE', 'FESTIVE DISCOUNTS.'],
+        highlight: 'MEGA SALE IS LIVE! 🏷️'
       },
       {
-        id: 'tagline',
-        label: 'Offer Details',
-        defaultText: 'Up to 50% OFF on all products',
-        bbox: { x: 0.05, y: 0.31, width: 0.44, height: 0.07 }
+        icon: '🎁',
+        lines: ['PERFECT FOR GIFTING.', 'ELEGANT CASINGS.', 'ORDER TODAY.'],
+        highlight: null
       },
       {
-        id: 'body',
-        label: 'Promo Message',
-        defaultText: 'Do not miss out on our biggest sale of the year! Limited time offer on premium products. Grab the best deals before they are gone!',
-        bbox: { x: 0.05, y: 0.40, width: 0.44, height: 0.22 }
+        icon: '✨',
+        lines: ['LIMITED QUANTITIES', 'AVAILABLE. SHOP', 'BEFORE THEY SELL.'],
+        highlight: null
       },
       {
-        id: 'footer',
-        label: 'Call to Action',
-        defaultText: 'Shop Now — Limited Time Only!',
-        bbox: { x: 0.05, y: 0.86, width: 0.90, height: 0.06 }
-      },
-      {
-        id: 'website',
-        label: 'Website URL',
-        defaultText: 'www.yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
-      },
-      {
-        id: 'email',
-        label: 'Email Address',
-        defaultText: 'contact@yourbusiness.com',
-        bbox: { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        icon: '🛍',
+        lines: ['AIMAVEN —', 'WHERE EVERY', 'MOMENT MATTERS.'],
+        highlight: 'MADE FOR EVERY MOMENT.'
       }
     ],
-    promptTemplate: 'Flat graphic design marketing poster background for {occasionName}.'
+    recraftScenePrompt: 'Vibrant celebration sale background scene with abstract geometric shapes, confetti, ribbons, and gift box silhouettes. Flat 2D digital illustration. No text.'
   }
 ];
-
 
 async function seed() {
   try {

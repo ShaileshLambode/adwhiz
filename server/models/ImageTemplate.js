@@ -1,54 +1,51 @@
 const mongoose = require("mongoose");
 
 const imageTemplateSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
+  name: { type: String, required: true },           // "Happy Holi"
+  occasion: { type: String, required: true },        // "holi"
+  aspectRatio: { type: String, default: '1024x1024' },
+  colorPalette: [String],                            // hex codes for Recraft scene
+
+  // Zone 2 — Hero content (left panel text)
+  heroContent: {
+    headline: String,        // "Happy Holi!"
+    subheading: String,      // "Festival of Colors"
+    bodyMessage: String,     // "May this Holi fill your life..."
+    closingSlogan: String,   // "Bura Na Mano, Holi Hai!"
+    rightBoxQuote: String,   // "Let the colors of Holi spread love..."
   },
-  occasion: {
-    type: String,
-    required: true
-    // holi | bhai_dooj | diwali | eid | independence_day | generic_sale
-  },
-  aspectRatio: {
-    type: String,
-    default: "1024x1024"
-  },
-  colorPalette: {
-    type: [String],
-    default: []
-    // hex codes for Recraft color controls
-  },
-  textSlots: [{
-    id: {
-      type: String,
-      required: true
-      // headline | tagline | body | footer | contact
-    },
-    label: {
-      type: String,
-      required: true
-    },
-    defaultText: {
-      type: String,
-      default: ""
-    },
-    bbox: {
-      x: { type: Number, required: true },
-      y: { type: Number, required: true },
-      width: { type: Number, required: true },
-      height: { type: Number, required: true }
-    }
+
+  // Zone 3 — Values/ritual row (3 items)
+  valuesRow: [{
+    icon: String,            // Unicode emoji or SVG path: "🎨" "❤️" "∞"
+    label: String,           // "ENJOY" "LOVE" "BOND"
+    sublabel: String,        // "every moment" "that never ends" "that grows stronger"
   }],
-  promptTemplate: {
-    type: String,
-    required: true
-    // template string with placeholders: {occasion}, {businessName}, {sector}, etc.
-  },
-  active: {
-    type: Boolean,
-    default: true
-  }
+
+  // Zone 4 — Marketing features (4 items, mostly fixed per brand)
+  featuresBar: [{
+    icon: String,            // "🎁" "🛡" "❤" "🇮🇳"
+    text: String,            // "THOUGHTFUL GIFTS THAT BRING SMILES."
+  }],
+
+  // Zone 5 — Product categories (user's product list)
+  productCategories: [{
+    icon: String,            // "🎒" "👜" "💼"
+    name: String,            // "LAPTOP BAG"
+  }],
+
+  // Zone 6 — Footer columns (4 items)
+  footerColumns: [{
+    icon: String,            // emoji or color indicator
+    lines: [String],         // array of text lines per column
+    highlight: String,       // optional highlighted phrase in last line
+  }],
+
+  // Recraft prompt config for hero scene
+  recraftScenePrompt: String, // base description for the festive scene
+
+  active: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model("ImageTemplate", imageTemplateSchema);
+

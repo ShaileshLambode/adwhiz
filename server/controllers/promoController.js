@@ -3,13 +3,49 @@ const axios = require("axios");
 const sharp = require("sharp");
 const streamifier = require("streamifier");
 const path = require("path");
-const { createCanvas } = require("canvas");
 
 const PromoPost = require("../models/PromoPost");
 const ImageTemplate = require("../models/ImageTemplate");
 const Logo = require("../models/Logo");
-const { buildPrompt, hexToRgb, buildTextLayoutEntries } = require("../utils/promptBuilder");
+const { buildPrompt, hexToRgb } = require("../utils/promptBuilder");
+const {
+  buildZone1Header,
+  buildZone2Left,
+  buildZone2Right_QuoteBox,
+  buildZone3ValuesRow,
+  buildZone4FeaturesBar,
+  buildZone5ProductIcons,
+  buildZone6FooterStrip
+} = require("../utils/svgBuilder");
+const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
 
+
+// ─── Contact parser utility ──────────────────────────────────────────────────
+function parseContactInfo(address) {
+  let website = "www.aimaven.tech";
+  let email = "aimaven.surat@gmail.com";
+  
+  if (address) {
+    const parts = address.split(/[|,]/).map(p => p.trim());
+    if (parts.length > 0) {
+      let foundEmail = false;
+      let foundWeb = false;
+      parts.forEach(part => {
+        if (part.includes('@')) {
+          email = part;
+          foundEmail = true;
+        } else if (part.includes('.') || part.startsWith('www')) {
+          website = part;
+          foundWeb = true;
+        }
+      });
+      if (!foundWeb && !foundEmail && parts[0]) {
+        website = parts[0];
+      }
+    }
+  }
+  return { website, email };
+}
 
 // ─── Logo background removal (unchanged — works fine) ────────────────────────
 async function removeLogoBackground(logoBuffer) {
@@ -33,168 +69,16 @@ async function removeLogoBackground(logoBuffer) {
 }
 
 
-/**
- * Renders the body copy (tagline, body message, footer slogan) as an SVG overlay
- * on the LEFT PANEL of the poster, including a semi-transparent dark background 
- * and a white logo card/badge, using Sharp's built-in SVG support.
- *
- * @param {Object} textData - { tagline, body, footer, website, email }
- * @param {number} imgWidth - Image width in px
- * @param {number} imgHeight - Image height in px
- * @param {number} logoW - Logo width in px
- * @param {number} logoH - Logo height in px
- * @returns {Buffer} SVG buffer
- */
-function buildTextOverlaySVG(textData, imgWidth, imgHeight, logoW, logoH) {
-  const leftPanelWidth = Math.floor(imgWidth * 0.46); // Left 46%
-
-  // Escape XML special characters
-  const esc = (s) => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-  // Font sizes scaled to image size
-  const taglineSize = Math.floor(imgWidth * 0.026);  
-  const bodySize    = Math.floor(imgWidth * 0.019);  
-  const footerSize  = Math.floor(imgWidth * 0.018);  
-  const contactSize = Math.floor(imgWidth * 0.017);  
-
-  // Wrap text lines
-  const taglineLines = wrapText(textData.tagline || '', 28);
-  const bodyLines = wrapText(textData.body || '', 32);
-  const footerLines = wrapText(textData.footer || '', 32);
-
-  let textElements = '';
-
-  // 1. Draw the left panel semi-transparent dark overlay background (masks out underlying clutter)
-  textElements += `<rect x="0" y="0" width="${leftPanelWidth}" height="${imgHeight}" fill="rgba(22, 11, 33, 0.72)" />`;
-
-  // 2. Draw the logo background card in top-left (ensures high contrast for dark or transparent logos)
-  if (logoW && logoH) {
-    textElements += `<rect x="20" y="20" width="${logoW + 24}" height="${logoH + 16}" rx="8" fill="#FFFFFF" />`;
-  }
-
-  // 3. Stacking the text slots
-  let currentY = Math.floor(imgHeight * 0.36);
-  const lineGap = bodySize * 1.5;
-
-  // Tagline
-  taglineLines.forEach(line => {
-    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}" 
-      font-family="system-ui, -apple-system, sans-serif" font-size="${taglineSize}" font-weight="700"
-      fill="#F7C948" text-anchor="middle">${esc(line)}</text>`;
-    currentY += taglineSize * 1.5;
-  });
-  
-  currentY += bodySize * 0.8;
-
-  // Body copy
-  bodyLines.forEach(line => {
-    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}"
-      font-family="system-ui, -apple-system, sans-serif" font-size="${bodySize}" font-weight="400"
-      fill="#FFFFFF" text-anchor="middle" opacity="0.90">${esc(line)}</text>`;
-    currentY += lineGap;
-  });
-
-  // Footer slogan (stacked inside the left panel above the bottom bar to avoid overlapping with right panel decorations)
-  currentY = Math.floor(imgHeight * 0.76);
-  footerLines.forEach(line => {
-    textElements += `<text x="${leftPanelWidth / 2}" y="${currentY}"
-      font-family="system-ui, -apple-system, sans-serif" font-size="${footerSize}" font-weight="600"
-      fill="#F7C948" text-anchor="middle" opacity="0.95">${esc(line)}</text>`;
-    currentY += footerSize * 1.5;
-  });
-
-  // 4. Contact bar at the very bottom
-  const contactBarHeight = Math.floor(imgHeight * 0.08);
-  const contactBarY = imgHeight - contactBarHeight;
-  const contactText = [textData.website, textData.email].filter(Boolean).join('  |  ');
-  
-  textElements += `
-    <rect x="0" y="${contactBarY}" width="${imgWidth}" height="${contactBarHeight}" fill="rgba(12, 6, 17, 0.85)"/>
-    <text x="${imgWidth / 2}" y="${contactBarY + Math.floor(contactBarHeight * 0.60)}"
-      font-family="system-ui, -apple-system, sans-serif" font-size="${contactSize}" font-weight="600"
-      fill="#FFFFFF" text-anchor="middle">${esc(contactText)}</text>`;
-
-  const svg = `<svg width="${imgWidth}" height="${imgHeight}" xmlns="http://www.w3.org/2000/svg">
-    ${textElements}
-  </svg>`;
-
-  return Buffer.from(svg);
-}
-
-/**
- * Simple word-wrap utility — splits a string into lines of maxChars.
- */
-function wrapText(text, maxChars) {
-  if (!text) return [];
-  const words = text.split(' ');
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    if ((current + ' ' + word).trim().length <= maxChars) {
-      current = (current + ' ' + word).trim();
-    } else {
-      if (current) lines.push(current);
-      current = word;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
-
-// ─── Canvas footer strip (used only for website+email bar) ───────────────────
-function renderFooterStrip(website, email, imageWidth) {
-  const height = Math.max(Math.floor(imageWidth * 0.07), 40);
-  const canvas = createCanvas(imageWidth, height);
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
-  ctx.fillRect(0, 0, imageWidth, height);
-  const fontSize = Math.floor(height * 0.38);
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const contactText = [website, email].filter(Boolean).join('  |  ');
-  ctx.fillText(contactText, imageWidth / 2, height / 2);
-  return canvas.toBuffer('image/png');
-}
-
-
-// ─── Core generation logic (shared by generate + regenerate) ─────────────────
-async function runGeneration({ template, logoDoc, textInputs, size, stylePreset }) {
-
-  const prompt = buildPrompt(template, logoDoc);
-  console.log('[Promo] Prompt:', prompt);
-
-  // ── Build text_layout: ONLY for short display words (headline slot only) ──
-  // text_layout is Recraft's "signage" feature — works for HAPPY DIWALI, not body paragraphs
-  const text_layout = [];
-  const headlineSlot = template.textSlots.find(s => s.id === 'headline');
-  if (headlineSlot) {
-    const headlineInput = textInputs.find(ti => ti.id === 'headline');
-    const headlineText = headlineInput ? headlineInput.value : headlineSlot.defaultText || '';
-    if (headlineText.trim()) {
-      const entries = buildTextLayoutEntries(headlineText, headlineSlot.bbox);
-      text_layout.push(...entries);
-    }
-  }
-
-  // ── Build color controls ──────────────────────────────────────────────────
-  const colorControls = template.colorPalette
-    .filter(hex => hex && hex.trim())
-    .map(hex => hexToRgb(hex));
-
-  const imageSize = size || template.aspectRatio || '1024x1024';
-
-  // ── FIX: Map frontend preset labels to valid Recraft V3 style strings ──────
-  // Map any custom or legacy styles to valid Recraft V3 API style keys
+// ─── Core generation logic (composite vertical pipeline) ───────────────────
+async function runGeneration({ template, logoDoc, overrides, size, stylePreset }) {
+  // 1. Build Recraft style and payload
   const VALID_STYLES = {
     'realistic_image':                    'digital_illustration',
     'digital_illustration':               'digital_illustration',
     'digital_illustration/flat_design':   'digital_illustration',
     'digital_illustration/2d_art_poster': 'digital_illustration/2d_art_poster',
-    'digital_illustration/engraving':    'digital_illustration/engraving_color',
-    'digital_illustration/hand_drawn':   'digital_illustration/hand_drawn',
+    'digital_illustration/engraving':     'digital_illustration/engraving_color',
+    'digital_illustration/hand_drawn':    'digital_illustration/hand_drawn',
     'minimalist':                         'digital_illustration',
     'vintage_poster':                     'digital_illustration/engraving_color',
     'three_d_render':                     'digital_illustration/handmade_3d',
@@ -202,28 +86,23 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
   };
   const recraftStyle = VALID_STYLES[stylePreset] || 'digital_illustration';
 
-  // ── Recraft API Payload ───────────────────────────────────────────────────
-  // CRITICAL: text_layout is a TOP-LEVEL parameter — NOT inside controls{}
   const recraftPayload = {
-    prompt,
+    prompt: buildPrompt(template),
     model: 'recraftv3',
     style: recraftStyle,
-    size: imageSize,
+    size: '1024x1536', // Use portrait hero image for best cropping
     n: 1,
     response_format: 'url',
     controls: {
-      colors: colorControls.length > 0 ? colorControls : undefined,
-    },
+      colors: template.colorPalette
+        .filter(hex => hex && hex.trim())
+        .map(hex => hexToRgb(hex))
+    }
   };
 
-  // Only add text_layout at top level if we have entries
-  if (text_layout.length > 0) {
-    recraftPayload.text_layout = text_layout;  // TOP LEVEL — not inside controls
-  }
+  console.log('[Promo] Recraft hero scene payload:', JSON.stringify(recraftPayload, null, 2));
 
-  console.log('[Promo] Recraft payload:', JSON.stringify(recraftPayload, null, 2));
-
-  // ── Call Recraft API ──────────────────────────────────────────────────────
+  // 2. Call Recraft API
   const recraftResponse = await axios.post(
     'https://external.api.recraft.ai/v1/images/generations',
     recraftPayload,
@@ -238,54 +117,103 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
   const generatedImageUrl = recraftResponse.data.data[0].url;
   console.log('[Promo] Recraft image URL:', generatedImageUrl);
 
-  // ── Download base image + logo ────────────────────────────────────────────
-  const [baseImageBuffer, logoBuffer] = await Promise.all([
+  // 3. Download base image and logo
+  const [heroSceneBaseBuffer, logoBuffer] = await Promise.all([
     axios.get(generatedImageUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
     axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
   ]);
 
+  // 4. Poster layout allocations
+  const [W, H] = parseSize(size);
+  const zones = calculateZoneHeights(H);
+
+  const panelW_left = Math.floor(W * 0.46);
+  const panelW_right = W - panelW_left;
+
+  const quoteBoxW = Math.floor(panelW_right * 0.45);
+  const quoteBoxH = Math.floor(zones.z2 * 0.84);
+  const quoteBoxX = panelW_left + Math.floor(panelW_right * 0.50);
+  const quoteBoxY = zones.z1 + Math.floor(zones.z2 * 0.08);
+
+  // 5. Logo and hero background resize
   const processedLogoBuffer = await removeLogoBackground(logoBuffer);
-  const baseMetadata = await sharp(baseImageBuffer).metadata();
-  const { width: imgWidth, height: imgHeight } = baseMetadata;
-
-  // ── Resize logo to 18% of image width ────────────────────────────────────
+  // Scale logo height to 65% of header height
+  const targetLogoH = Math.floor(zones.z1 * 0.65);
   const resizedLogoBuffer = await sharp(processedLogoBuffer)
-    .resize({ width: Math.round(imgWidth * 0.18) })
+    .resize({ height: targetLogoH })
     .toBuffer();
-
+  
   const logoMetadata = await sharp(resizedLogoBuffer).metadata();
-  const logoW = logoMetadata.width;
   const logoH = logoMetadata.height;
 
-  // ── Build text overlay SVG for tagline, body, footer (NOT Recraft text_layout) ─
-  const taglineInput  = textInputs.find(ti => ti.id === 'tagline');
-  const bodyInput     = textInputs.find(ti => ti.id === 'body');
-  const footerInput   = textInputs.find(ti => ti.id === 'footer');
-  const websiteInput  = textInputs.find(ti => ti.id === 'website');
-  const emailInput    = textInputs.find(ti => ti.id === 'email');
-
-  const svgOverlayBuffer = buildTextOverlaySVG(
-    {
-      tagline: taglineInput ? taglineInput.value : '',
-      body:    bodyInput    ? bodyInput.value    : '',
-      footer:  footerInput  ? footerInput.value  : '',
-      website: websiteInput ? websiteInput.value : '',
-      email:   emailInput   ? emailInput.value   : '',
-    },
-    imgWidth,
-    imgHeight,
-    logoW,
-    logoH
-  );
-
-  // ── Composite: base → SVG text overlay → logo ────────────────────────────
-  const finalImageBuffer = await sharp(baseImageBuffer)
-    .composite([
-      { input: svgOverlayBuffer, top: 0, left: 0 },      // text overlay (tagline, body, footer, contact)
-      { input: resizedLogoBuffer, top: 28, left: 32 },    // brand logo top-left (centered in the white card)
-    ])
-    .jpeg({ quality: 92 })
+  // Crop/Resize Recraft illustration to fill the right hero panel
+  const heroSceneResizedBuffer = await sharp(heroSceneBaseBuffer)
+    .resize({
+      width: panelW_right,
+      height: zones.z2,
+      fit: 'cover',
+      position: 'center'
+    })
     .toBuffer();
+
+  // 6. Generate SVG buffers for each zone
+  const contact = parseContactInfo(logoDoc.address);
+  const z1Svg = buildZone1Header({ website: contact.website, email: contact.email }, W, zones.z1, template.colorPalette);
+  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, template.colorPalette, template.occasion);
+  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, template.colorPalette, template.occasion);
+  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, template.colorPalette);
+  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, template.colorPalette);
+  const z5Svg = buildZone5ProductIcons(overrides.productCategories, W, zones.z5);
+  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, template.colorPalette);
+
+  // 7. Composite in array order
+  let currentY = 0;
+  const composites = [];
+
+  // Zone 1 — Header Bar
+  composites.push({ input: z1Svg, top: currentY, left: 0 });
+  currentY += zones.z1;
+
+  // Zone 2 — Hero Right background scene (underneath the overlay box)
+  composites.push({ input: heroSceneResizedBuffer, top: currentY, left: panelW_left });
+
+  // Zone 2 — Hero Left dark panel
+  composites.push({ input: z2LeftSvg, top: currentY, left: 0 });
+
+  // Zone 2 — Right quote box overlay
+  composites.push({ input: z2RightBoxSvg, top: quoteBoxY, left: quoteBoxX });
+  currentY += zones.z2;
+
+  // Zone 3 — Values Row
+  composites.push({ input: z3Svg, top: currentY, left: 0 });
+  currentY += zones.z3;
+
+  // Zone 4 — Features Bar
+  composites.push({ input: z4Svg, top: currentY, left: 0 });
+  currentY += zones.z4;
+
+  // Zone 5 — Product Categories
+  composites.push({ input: z5Svg, top: currentY, left: 0 });
+  currentY += zones.z5;
+
+  // Zone 6 — Footer Strip
+  composites.push({ input: z6Svg, top: currentY, left: 0 });
+
+  // Brand Logo top-left centered vertically
+  const logoTop = Math.floor((zones.z1 - logoH) / 2);
+  composites.push({ input: resizedLogoBuffer, top: logoTop, left: 30 });
+
+  const finalImageBuffer = await sharp({
+    create: {
+      width: W,
+      height: H,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    }
+  })
+  .composite(composites)
+  .jpeg({ quality: 93 })
+  .toBuffer();
 
   return finalImageBuffer;
 }
@@ -306,11 +234,11 @@ exports.listTemplates = async (req, res) => {
 
 exports.generatePromo = async (req, res) => {
   try {
-    const { templateId, logoId, textInputs, size, stylePreset } = req.body;
+    const { templateId, logoId, size, stylePreset } = req.body;
     const userId = req.user.id;
 
-    if (!templateId || !logoId || !textInputs || !Array.isArray(textInputs)) {
-      return res.status(400).json({ error: 'Missing required fields: templateId, logoId, textInputs' });
+    if (!templateId || !logoId) {
+      return res.status(400).json({ error: 'Missing required fields: templateId, logoId' });
     }
 
     const template = await ImageTemplate.findById(templateId);
@@ -319,7 +247,22 @@ exports.generatePromo = async (req, res) => {
     const logoDoc = await Logo.findById(logoId);
     if (!logoDoc || !logoDoc.images?.url) return res.status(404).json({ error: 'Valid logo not found' });
 
-    const finalImageBuffer = await runGeneration({ template, logoDoc, textInputs, size, stylePreset });
+    // Construct the structured overlays merging defaults + overrides
+    const overrides = {
+      heroContent: {
+        headline: req.body.heroContent?.headline || template.heroContent?.headline || '',
+        subheading: req.body.heroContent?.subheading || template.heroContent?.subheading || '',
+        bodyMessage: req.body.heroContent?.bodyMessage || template.heroContent?.bodyMessage || '',
+        closingSlogan: req.body.heroContent?.closingSlogan || template.heroContent?.closingSlogan || '',
+        rightBoxQuote: req.body.heroContent?.rightBoxQuote || template.heroContent?.rightBoxQuote || '',
+      },
+      valuesRow: req.body.valuesRow || template.valuesRow || [],
+      featuresBar: req.body.featuresBar || template.featuresBar || [],
+      productCategories: req.body.productCategories || template.productCategories || [],
+      footerColumns: req.body.footerColumns || template.footerColumns || [],
+    };
+
+    const finalImageBuffer = await runGeneration({ template, logoDoc, overrides, size, stylePreset });
 
     // Upload to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -329,13 +272,14 @@ exports.generatePromo = async (req, res) => {
           console.error('Cloudinary upload error:', error);
           return res.status(500).json({ error: 'Failed to upload final image' });
         }
+        
         const newPromoPost = new PromoPost({
           user: userId,
           logo: logoId,
           template: templateId,
           occasion: template.occasion,
           size: size || template.aspectRatio || '1024x1024',
-          textInputs,
+          userOverrides: overrides,
           generatedImageUrl: result.secure_url,
         });
         await newPromoPost.save();
@@ -362,7 +306,6 @@ exports.regeneratePromo = async (req, res) => {
     const {
       templateId = existingPost.template,
       logoId = existingPost.logo,
-      textInputs = existingPost.textInputs,
       size = existingPost.size,
       stylePreset
     } = req.body;
@@ -373,7 +316,22 @@ exports.regeneratePromo = async (req, res) => {
     const logoDoc = await Logo.findById(logoId);
     if (!logoDoc || !logoDoc.images?.url) return res.status(404).json({ error: 'Valid logo not found' });
 
-    const finalImageBuffer = await runGeneration({ template, logoDoc, textInputs, size, stylePreset });
+    // Merge overrides
+    const overrides = {
+      heroContent: {
+        headline: req.body.heroContent?.headline || existingPost.userOverrides?.heroContent?.headline || template.heroContent?.headline || '',
+        subheading: req.body.heroContent?.subheading || existingPost.userOverrides?.heroContent?.subheading || template.heroContent?.subheading || '',
+        bodyMessage: req.body.heroContent?.bodyMessage || existingPost.userOverrides?.heroContent?.bodyMessage || template.heroContent?.bodyMessage || '',
+        closingSlogan: req.body.heroContent?.closingSlogan || existingPost.userOverrides?.closingSlogan || template.heroContent?.closingSlogan || '',
+        rightBoxQuote: req.body.heroContent?.rightBoxQuote || existingPost.userOverrides?.rightBoxQuote || template.heroContent?.rightBoxQuote || '',
+      },
+      valuesRow: req.body.valuesRow || existingPost.userOverrides?.valuesRow || template.valuesRow || [],
+      featuresBar: req.body.featuresBar || existingPost.userOverrides?.featuresBar || template.featuresBar || [],
+      productCategories: req.body.productCategories || existingPost.userOverrides?.productCategories || template.productCategories || [],
+      footerColumns: req.body.footerColumns || existingPost.userOverrides?.footerColumns || template.footerColumns || [],
+    };
+
+    const finalImageBuffer = await runGeneration({ template, logoDoc, overrides, size, stylePreset });
 
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'promo_posts', resource_type: 'image' },
@@ -391,7 +349,7 @@ exports.regeneratePromo = async (req, res) => {
         existingPost.logo = logoId;
         existingPost.occasion = template.occasion;
         existingPost.size = size || template.aspectRatio;
-        existingPost.textInputs = textInputs;
+        existingPost.userOverrides = overrides;
         existingPost.generatedImageUrl = result.secure_url;
         await existingPost.save();
 
@@ -466,3 +424,7 @@ exports.togglePromoFavorite = async (req, res) => {
     return res.status(500).json({ error: 'Server error while updating favorite' });
   }
 };
+
+exports.runGeneration = runGeneration;
+
+

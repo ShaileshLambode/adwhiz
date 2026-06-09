@@ -11,8 +11,8 @@ const PromoCreator = () => {
   // Wizard Steps:
   // 1: Choose Occasion/Template
   // 2: Choose Business/Logo
-  // 3: Fill Text Slots & Palette Preview
-  // 4: Set Aspect Ratio & Style Presets (Realistic, Cartoon, 3D render, etc.)
+  // 3: Fill Text Slots (Hero, Values, Products, Footer)
+  // 4: Set Aspect Ratio & Style Presets
   // 5: Preview & Generate
   const [currentStep, setCurrentStep] = useState(1);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -23,9 +23,16 @@ const PromoCreator = () => {
   // Form State
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
-  const [textInputs, setTextInputs] = useState([]);
+  
+  // New Structured State
+  const [heroContent, setHeroContent] = useState({ headline: "", subheading: "", bodyMessage: "", closingSlogan: "", rightBoxQuote: "" });
+  const [valuesRow, setValuesRow] = useState([]);
+  const [featuresBar, setFeaturesBar] = useState([]);
+  const [productCategories, setProductCategories] = useState([]);
+  const [footerColumns, setFooterColumns] = useState([]);
+
   const [aspectRatio, setAspectRatio] = useState("1024x1024");
-  const [stylePreset, setStylePreset] = useState("realistic_image");
+  const [stylePreset, setStylePreset] = useState("digital_illustration");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
   const [generatedResult, setGeneratedResult] = useState(null);
@@ -68,31 +75,108 @@ const PromoCreator = () => {
   // Handle selecting a template
   const handleSelectTemplate = (template) => {
     setSelectedTemplate(template);
-    // Initialize text inputs from template text slots
-    const initialInputs = template.textSlots.map(slot => ({
-      id: slot.id,
-      label: slot.label,
-      value: slot.defaultText || ""
-    }));
-    setTextInputs(initialInputs);
+    
+    // Initialize hero content
+    setHeroContent({
+      headline: template.heroContent?.headline || "",
+      subheading: template.heroContent?.subheading || "",
+      bodyMessage: template.heroContent?.bodyMessage || "",
+      closingSlogan: template.heroContent?.closingSlogan || "",
+      rightBoxQuote: template.heroContent?.rightBoxQuote || "",
+    });
+
+    // Initialize values row (3 items)
+    setValuesRow(
+      (template.valuesRow && template.valuesRow.length === 3)
+        ? template.valuesRow.map(v => ({ icon: v.icon || "", label: v.label || "", sublabel: v.sublabel || "" }))
+        : [
+            { icon: "🎨", label: "ENJOY", sublabel: "every moment" },
+            { icon: "❤️", label: "LOVE", sublabel: "that never ends" },
+            { icon: "✨", label: "CELEBRATE", sublabel: "togetherness" }
+          ]
+    );
+
+    // Initialize features bar (4 items)
+    setFeaturesBar(
+      (template.featuresBar && template.featuresBar.length === 4)
+        ? template.featuresBar.map(f => ({ icon: f.icon || "", text: f.text || "" }))
+        : [
+            { icon: "🎁", text: "THOUGHTFUL GIFTS THAT BRING SMILES." },
+            { icon: "🛡️", text: "PREMIUM QUALITY. BUILT TO LAST." },
+            { icon: "❤️", text: "MADE TO DELIGHT. MADE FOR YOU." },
+            { icon: "🇮🇳", text: "PROUDLY DESIGNED IN INDIA." }
+          ]
+    );
+
+    // Initialize product categories (user customizable list)
+    setProductCategories(
+      template.productCategories
+        ? template.productCategories.map(p => ({ icon: p.icon || "", name: p.name || "" }))
+        : []
+    );
+
+    // Initialize footer columns (4 columns)
+    setFooterColumns(
+      (template.footerColumns && template.footerColumns.length === 4)
+        ? template.footerColumns.map(col => ({
+            icon: col.icon || "",
+            lines: col.lines ? col.lines.join('\n') : "",
+            highlight: col.highlight || ""
+          }))
+        : [
+            { icon: "✨", lines: "", highlight: "" },
+            { icon: "✨", lines: "", highlight: "" },
+            { icon: "✨", lines: "", highlight: "" },
+            { icon: "✨", lines: "", highlight: "" }
+          ]
+    );
+
     setAspectRatio(template.aspectRatio || "1024x1024");
   };
 
   // Handle selecting business
   const handleSelectBusiness = (biz) => {
     setSelectedBusiness(biz);
-    // Automatically fill in website slot with business address if exists
-    setTextInputs(prev => prev.map(input => {
-      if (input.id === 'website' && biz.address) {
-        return { ...input, value: biz.address };
-      }
-      return input;
+    
+    // Replace "AIMAVEN" with the business name in heroContent and footerColumns
+    const brandName = biz.name || "AIMAVEN";
+    
+    setHeroContent(prev => ({
+      ...prev,
+      bodyMessage: prev.bodyMessage.replace(/AIMAVEN/gi, brandName),
+      rightBoxQuote: prev.rightBoxQuote.replace(/AIMAVEN/gi, brandName),
     }));
+
+    setFooterColumns(prev => prev.map(col => ({
+      ...col,
+      lines: col.lines.replace(/AIMAVEN/gi, brandName),
+      highlight: col.highlight.replace(/AIMAVEN/gi, brandName),
+    })));
   };
 
-  // Handle text input change
-  const handleTextChange = (id, val) => {
-    setTextInputs(prev => prev.map(input => input.id === id ? { ...input, value: val } : input));
+  // Content change handlers
+  const handleValueChange = (index, field, value) => {
+    setValuesRow(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleProductChange = (index, field, value) => {
+    setProductCategories(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleAddProduct = () => {
+    if (productCategories.length >= 8) {
+      toast.warning("Maximum of 8 products reached.");
+      return;
+    }
+    setProductCategories(prev => [...prev, { icon: "🎒", name: "NEW PRODUCT" }]);
+  };
+
+  const handleRemoveProduct = (index) => {
+    setProductCategories(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleFooterChange = (index, field, value) => {
+    setFooterColumns(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
   };
 
   const handleNext = () => {
@@ -113,27 +197,34 @@ const PromoCreator = () => {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    setGenerationProgress("Contacting Recraft V3 text layout engine...");
+    setGenerationProgress("Contacting Recraft V3 scene generator...");
 
-    // Helper to simulate intermediate steps for visualization
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
-      await delay(1500);
-      setGenerationProgress("Generating structured layout scene...");
-      await delay(1800);
-      setGenerationProgress("Downloading generated image and scaling logo...");
-      await delay(1500);
-      setGenerationProgress("Compositing logo to upper-left with Sharp...");
       await delay(1200);
-      setGenerationProgress("Uploading final marketing poster to Cloudinary...");
+      setGenerationProgress("Generating illustration scene buffer...");
+      await delay(1500);
+      setGenerationProgress("Downloading graphics and scaling logo...");
+      await delay(1200);
+      setGenerationProgress("Compositing vertical layout zones with Sharp...");
+      await delay(1200);
+      setGenerationProgress("Uploading high-resolution poster to Cloudinary...");
 
       const payload = {
         templateId: selectedTemplate._id,
         logoId: selectedBusiness._id,
-        textInputs: textInputs.map(input => ({ id: input.id, value: input.value })),
         size: aspectRatio,
-        stylePreset: stylePreset
+        stylePreset: stylePreset,
+        heroContent,
+        valuesRow,
+        featuresBar,
+        productCategories,
+        footerColumns: footerColumns.map(col => ({
+          icon: col.icon,
+          lines: col.lines.split('\n').map(l => l.trim()).filter(Boolean),
+          highlight: col.highlight || null
+        }))
       };
 
       const res = await axios.post(`${BACKEND_URL}/api/promo/generate`, payload, {
@@ -181,7 +272,7 @@ const PromoCreator = () => {
     }
   };
 
-  // Recraft preset options
+  // Recraft style preset selections
   const stylePresets = [
     {
       value: "digital_illustration",
@@ -279,7 +370,7 @@ const PromoCreator = () => {
                       </span>
                       <div className="text-xs text-gray-400 space-y-1">
                         <div>Aspect Ratio: {temp.aspectRatio}</div>
-                        <div>Text slots: {temp.textSlots.length} zones</div>
+                        <div>Type: 6-Zone Infographic</div>
                       </div>
                       
                       {/* Color Palette Preview */}
@@ -353,22 +444,192 @@ const PromoCreator = () => {
           {/* STEP 3: Fill Text Slots */}
           {currentStep === 3 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Fill Poster Text Content</h2>
-              <p className="text-sm text-gray-500 mb-6">Modify the default text slots. These texts will be perfectly laid out by the Recraft V3 text alignment AI.</p>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Edit Poster Content</h2>
+              <p className="text-sm text-gray-500 mb-6">Customize the content for each of the poster zones. The layout will be dynamically composited on the server.</p>
               
-              <div className="space-y-4 max-w-xl">
-                {textInputs.map((input) => (
-                  <div key={input.id}>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">{input.label}</label>
-                    <input 
-                      type="text" 
-                      value={input.value} 
-                      onChange={(e) => handleTextChange(input.id, e.target.value)}
-                      placeholder={`Enter ${input.label}`}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
-                    />
+              <div className="space-y-8 max-w-2xl">
+                
+                {/* 3A: Hero Content */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>📝</span> Zone 2 — Hero & Slogans
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Headline</label>
+                      <input 
+                        type="text" 
+                        value={heroContent.headline} 
+                        onChange={(e) => setHeroContent({ ...heroContent, headline: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Subheading</label>
+                      <input 
+                        type="text" 
+                        value={heroContent.subheading} 
+                        onChange={(e) => setHeroContent({ ...heroContent, subheading: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Body Message</label>
+                      <textarea 
+                        rows={3}
+                        value={heroContent.bodyMessage} 
+                        onChange={(e) => setHeroContent({ ...heroContent, bodyMessage: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Closing Slogan</label>
+                        <input 
+                          type="text" 
+                          value={heroContent.closingSlogan} 
+                          onChange={(e) => setHeroContent({ ...heroContent, closingSlogan: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Right Quote Box</label>
+                        <input 
+                          type="text" 
+                          value={heroContent.rightBoxQuote} 
+                          onChange={(e) => setHeroContent({ ...heroContent, rightBoxQuote: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                {/* 3B: Values Row */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>🌟</span> Zone 3 — Values Row (3 Columns)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {valuesRow.map((val, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 space-y-2">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Icon"
+                            value={val.icon} 
+                            onChange={(e) => handleValueChange(idx, 'icon', e.target.value)}
+                            className="w-12 border border-gray-300 rounded-md p-1.5 text-center text-sm"
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="Label"
+                            value={val.label} 
+                            onChange={(e) => handleValueChange(idx, 'label', e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-md p-1.5 text-sm font-semibold"
+                          />
+                        </div>
+                        <input 
+                          type="text" 
+                          placeholder="Sublabel"
+                          value={val.sublabel} 
+                          onChange={(e) => handleValueChange(idx, 'sublabel', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md p-1.5 text-xs text-gray-600"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3C: Product Categories */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                      <span>👜</span> Zone 5 — Product Categories Showcase
+                    </h3>
+                    <button 
+                      type="button"
+                      onClick={handleAddProduct}
+                      className="text-xs bg-[#FF6666] text-white px-2.5 py-1.5 rounded-lg font-bold hover:opacity-90"
+                    >
+                      + Add Product
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {productCategories.map((prod, idx) => (
+                      <div key={idx} className="flex gap-2 bg-white p-2 rounded-lg border border-gray-200 items-center justify-between">
+                        <div className="flex gap-2 items-center flex-1">
+                          <input 
+                            type="text" 
+                            placeholder="Icon"
+                            value={prod.icon} 
+                            onChange={(e) => handleProductChange(idx, 'icon', e.target.value)}
+                            className="w-10 border border-gray-300 rounded-md p-1.5 text-center text-sm"
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="Product Name"
+                            value={prod.name} 
+                            onChange={(e) => handleProductChange(idx, 'name', e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-md p-1.5 text-sm"
+                          />
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveProduct(idx)}
+                          className="text-red-500 text-sm hover:scale-105 px-2 font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3D: Footer Columns */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>📋</span> Zone 6 — Footer Columns (4 Columns)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {footerColumns.map((col, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 space-y-3">
+                        <div className="flex gap-2 items-center justify-between border-b border-gray-100 pb-2">
+                          <span className="text-xs font-bold text-gray-400 uppercase">Column {idx + 1}</span>
+                          <input 
+                            type="text" 
+                            placeholder="Icon"
+                            value={col.icon} 
+                            onChange={(e) => handleFooterChange(idx, 'icon', e.target.value)}
+                            className="w-10 border border-gray-300 rounded-md p-1 text-center text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Text Lines (One per line)</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Line 1&#10;Line 2&#10;Line 3"
+                            value={col.lines} 
+                            onChange={(e) => handleFooterChange(idx, 'lines', e.target.value)}
+                            className="w-full border border-gray-300 rounded-md p-1.5 text-xs focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Highlight (Optional)</label>
+                          <input 
+                            type="text" 
+                            placeholder="Gold highlighted text"
+                            value={col.highlight} 
+                            onChange={(e) => handleFooterChange(idx, 'highlight', e.target.value)}
+                            className="w-full border border-gray-300 rounded-md p-1.5 text-xs"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -487,12 +748,22 @@ const PromoCreator = () => {
                     <div>
                       <span className="text-sm text-gray-500 block mb-2">Overlay Custom Texts:</span>
                       <div className="space-y-1.5 pl-3 border-l-2 border-[#FF6666]">
-                        {textInputs.map(input => (
-                          <div key={input.id} className="text-xs">
-                            <span className="text-gray-400 uppercase font-semibold mr-1.5">{input.label}:</span>
-                            <span className="text-gray-700 italic">"{input.value}"</span>
-                          </div>
-                        ))}
+                        <div className="text-xs">
+                          <span className="text-gray-400 uppercase font-semibold mr-1.5">Headline:</span>
+                          <span className="text-gray-700 italic">"{heroContent.headline}"</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-400 uppercase font-semibold mr-1.5">Subheading:</span>
+                          <span className="text-gray-700 italic">"{heroContent.subheading}"</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-400 uppercase font-semibold mr-1.5">Values:</span>
+                          <span className="text-gray-700 italic">{valuesRow.map(v => `${v.icon} ${v.label}`).join(' | ')}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-400 uppercase font-semibold mr-1.5">Products:</span>
+                          <span className="text-gray-700 italic">{productCategories.map(p => `${p.icon} ${p.name}`).join(', ')}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -559,3 +830,4 @@ const PromoCreator = () => {
 };
 
 export default PromoCreator;
+
