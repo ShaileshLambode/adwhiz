@@ -2,7 +2,7 @@ const Logo = require("../models/Logo");
 const cloudinary = require("../utils/cloudinary");
 const fs = require("fs");
 
- 
+
 // Create Logo
 exports.createLogo = async (req, res) => {
   try {
