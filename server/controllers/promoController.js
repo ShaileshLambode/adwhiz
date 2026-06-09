@@ -249,11 +249,13 @@ async function runGeneration({ template, logoDoc, textInputs, size, stylePreset 
   const { width: imgWidth, height: imgHeight } = baseMetadata;
 
   // ── Resize logo to 18% of image width ────────────────────────────────────
-  const resizedLogo = sharp(processedLogoBuffer).resize({ width: Math.round(imgWidth * 0.18) });
-  const logoMetadata = await resizedLogo.metadata();
+  const resizedLogoBuffer = await sharp(processedLogoBuffer)
+    .resize({ width: Math.round(imgWidth * 0.18) })
+    .toBuffer();
+
+  const logoMetadata = await sharp(resizedLogoBuffer).metadata();
   const logoW = logoMetadata.width;
   const logoH = logoMetadata.height;
-  const resizedLogoBuffer = await resizedLogo.toBuffer();
 
   // ── Build text overlay SVG for tagline, body, footer (NOT Recraft text_layout) ─
   const taglineInput  = textInputs.find(ti => ti.id === 'tagline');
