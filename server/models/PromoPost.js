@@ -28,13 +28,17 @@ const promoPostSchema = new mongoose.Schema({
     value: String
   }],
   userOverrides: {
-    headline: String,
-    subheading: String,
-    bodyMessage: String,
-    closingSlogan: String,
-    rightBoxQuote: String,
+    heroContent: {
+      headline:      String,
+      subheading:    String,
+      bodyMessage:   String,
+      closingSlogan: String,
+      rightBoxQuote: String,
+    },
+    valuesRow:         [{ icon: String, label: String, sublabel: String }],
+    featuresBar:       [{ icon: String, text: String }],
     productCategories: [{ icon: String, name: String }],
-    footerColumns: [{ icon: String, lines: [String], highlight: String }],
+    footerColumns:     [{ icon: String, lines: [String], highlight: String }],
   },
   generatedImageUrl: {
     type: String

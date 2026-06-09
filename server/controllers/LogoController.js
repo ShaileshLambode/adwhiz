@@ -6,7 +6,7 @@ const fs = require("fs");
 // Create Logo
 exports.createLogo = async (req, res) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, website, email, sector } = req.body;
     const user = req.user.id;
 
     if (!name || !address) {
@@ -52,6 +52,9 @@ exports.createLogo = async (req, res) => {
       user,
       name,
       address,
+      website: website || '',
+      email: email || '',
+      sector: sector || '',
       images: imageData,
     });
 
@@ -92,7 +95,7 @@ exports.getLogo = async (req, res) => {
 exports.updateLogo = async (req, res) => {
   try {
     const postId = req.params.id;
-    const { name, address, removedImage } = req.body;
+    const { name, address, website, email, sector, removedImage } = req.body;
 
     const oldPost = await Logo.findById(postId);
     if (!oldPost) {
@@ -134,9 +137,12 @@ exports.updateLogo = async (req, res) => {
       }
     }
 
-    // Update name and address
+    // Update fields
     if (name !== undefined) oldPost.name = name;
     if (address !== undefined) oldPost.address = address;
+    if (website !== undefined) oldPost.website = website;
+    if (email !== undefined) oldPost.email = email;
+    if (sector !== undefined) oldPost.sector = sector;
 
     const updatedPost = await oldPost.save();
 

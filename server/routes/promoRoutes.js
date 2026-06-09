@@ -7,6 +7,7 @@ const {
   downloadPromo,
   togglePromoFavorite,
   regeneratePromo,
+  aiFillContent,
 } = require("../controllers/promoController");
 const { userMiddleware } = require("../middleware/UserMiddleware");
 
@@ -14,6 +15,9 @@ const router = express.Router();
 
 // Template listing (for occasion picker)
 router.get("/templates", userMiddleware, listTemplates);
+
+// AI content fill
+router.post("/ai-fill", userMiddleware, aiFillContent);
 
 // Promo post CRUD
 router.post("/generate", userMiddleware, generatePromo);

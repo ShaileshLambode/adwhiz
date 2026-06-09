@@ -8,6 +8,9 @@ const CollectInformation = () => {
     const navigate = useNavigate();
     const [businessName, setBusinessName] = useState('');
     const [businessAddress, setBusinessAddress] = useState('');
+    const [website, setWebsite] = useState('');
+    const [email, setEmail] = useState('');
+    const [sector, setSector] = useState('');
     const [logoFile, setLogoFile] = useState(null);
     const [previewImage, setPreviewImage] = useState('');
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -21,6 +24,9 @@ const CollectInformation = () => {
             const formData = new FormData();
             formData.append('name', businessName);
             formData.append('address', businessAddress);
+            formData.append('website', website);
+            formData.append('email', email);
+            formData.append('sector', sector);
             formData.append('image', logoFile);
  
             const response = await axios.post(
@@ -42,11 +48,17 @@ const CollectInformation = () => {
                     user: response.data.user,
                     images: response.data.images,
                     name: response.data.name,
-                    address: response.data.address
+                    address: response.data.address,
+                    website: response.data.website,
+                    email: response.data.email,
+                    sector: response.data.sector
                 });
 
                 setBusinessName('');
                 setBusinessAddress('');
+                setWebsite('');
+                setEmail('');
+                setSector('');
                 setLogoFile(null);
                 setPreviewImage('');
                 navigate("/");
@@ -95,6 +107,51 @@ const CollectInformation = () => {
                             placeholder="Name"
                             required
                         />
+                    </div>
+
+                    {/* Website */}
+                    <div className="mb-2">
+                        <label className="block text-gray-700 mb-1 text-sm">Website URL</label>
+                        <input
+                            type="text"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm"
+                            placeholder="e.g. www.mybusiness.com"
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="mb-2">
+                        <label className="block text-gray-700 mb-1 text-sm">Email Address</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm"
+                            placeholder="e.g. info@mybusiness.com"
+                        />
+                    </div>
+
+                    {/* Sector */}
+                    <div className="mb-2">
+                        <label className="block text-gray-700 mb-1 text-sm">Business Sector</label>
+                        <select
+                            value={sector}
+                            onChange={(e) => setSector(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm bg-white"
+                        >
+                            <option value="">Select Sector</option>
+                            <option value="AI / Technology">AI / Technology</option>
+                            <option value="Retail / E-commerce">Retail / E-commerce</option>
+                            <option value="Fashion / Clothing">Fashion / Clothing</option>
+                            <option value="Food / Restaurant">Food / Restaurant</option>
+                            <option value="Health / Wellness">Health / Wellness</option>
+                            <option value="Education">Education</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Finance / Insurance">Finance / Insurance</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
 
                     {/* Address */}

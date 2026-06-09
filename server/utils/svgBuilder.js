@@ -38,6 +38,17 @@ exports.buildZone1Header = (data, W, H1, colors = []) => {
   const textDark = '#222222';
   const textGray = '#666666';
 
+  // Globe icon replacing 🌐
+  const globeIcon = (x, y) => `
+    <circle cx="${x}" cy="${y}" r="6.5" fill="none" stroke="${textDark}" stroke-width="1.2"/>
+    <line x1="${x-6.5}" y1="${y}" x2="${x+6.5}" y2="${y}" stroke="${textDark}" stroke-width="0.8"/>
+    <ellipse cx="${x}" cy="${y}" rx="3" ry="6.5" fill="none" stroke="${textDark}" stroke-width="0.8"/>`;
+
+  // Envelope icon replacing ✉  
+  const mailIcon = (x, y) => `
+    <rect x="${x-7.5}" y="${y-5}" width="15" height="10" rx="1" fill="none" stroke="${textDark}" stroke-width="1.2"/>
+    <polyline points="${x-7.5},${y-5} ${x},${y} ${x+7.5},${y-5}" fill="none" stroke="${textDark}" stroke-width="1"/>`;
+
   const svg = `<svg width="${W}" height="${H1}" xmlns="http://www.w3.org/2000/svg">
     <!-- Background -->
     <rect width="${W}" height="${H1}" fill="${bg}" />
@@ -49,13 +60,15 @@ exports.buildZone1Header = (data, W, H1, colors = []) => {
       ${tagline}
     </text>
     
-    <!-- Right side contact info -->
-    <g transform="translate(${W - 30}, 0)">
-      <text x="0" y="${H1 * 0.42}" text-anchor="end" font-family="Arial, sans-serif" font-size="${Math.floor(H1 * 0.15)}" font-weight="bold" fill="${textDark}">
-        🌐 ${website}
+    <!-- Right side contact info with SVG path icons -->
+    <g>
+      ${globeIcon(W - 42, H1 * 0.38)}
+      <text x="${W - 55}" y="${H1 * 0.43}" text-anchor="end" font-family="Arial, sans-serif" font-size="${Math.floor(H1 * 0.15)}" font-weight="bold" fill="${textDark}">
+        ${website}
       </text>
-      <text x="0" y="${H1 * 0.72}" text-anchor="end" font-family="Arial, sans-serif" font-size="${Math.floor(H1 * 0.15)}" font-weight="bold" fill="${textDark}">
-        ✉ ${email}
+      ${mailIcon(W - 42, H1 * 0.68)}
+      <text x="${W - 55}" y="${H1 * 0.73}" text-anchor="end" font-family="Arial, sans-serif" font-size="${Math.floor(H1 * 0.15)}" font-weight="bold" fill="${textDark}">
+        ${email}
       </text>
     </g>
     

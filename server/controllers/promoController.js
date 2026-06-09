@@ -3,6 +3,7 @@ const axios = require("axios");
 const sharp = require("sharp");
 const streamifier = require("streamifier");
 const path = require("path");
+const openai = require("../utils/openai");
 
 const PromoPost = require("../models/PromoPost");
 const ImageTemplate = require("../models/ImageTemplate");
@@ -19,33 +20,6 @@ const {
 } = require("../utils/svgBuilder");
 const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
 
-
-// ─── Contact parser utility ──────────────────────────────────────────────────
-function parseContactInfo(address) {
-  let website = "www.aimaven.tech";
-  let email = "aimaven.surat@gmail.com";
-  
-  if (address) {
-    const parts = address.split(/[|,]/).map(p => p.trim());
-    if (parts.length > 0) {
-      let foundEmail = false;
-      let foundWeb = false;
-      parts.forEach(part => {
-        if (part.includes('@')) {
-          email = part;
-          foundEmail = true;
-        } else if (part.includes('.') || part.startsWith('www')) {
-          website = part;
-          foundWeb = true;
-        }
-      });
-      if (!foundWeb && !foundEmail && parts[0]) {
-        website = parts[0];
-      }
-    }
-  }
-  return { website, email };
-}
 
 // ─── Logo background removal (unchanged — works fine) ────────────────────────
 async function removeLogoBackground(logoBuffer) {
@@ -68,9 +42,62 @@ async function removeLogoBackground(logoBuffer) {
   }
 }
 
+/**
+ * Extracts up to 5 dominant colors from a logo image buffer using Sharp pixel sampling.
+ * Samples a downscaled version of the logo, filters out near-white/near-black,
+ * sorts remaining pixels by hue, and picks 5 evenly-spaced samples.
+ * Returns an array of hex color strings.
+ */
+async function extractLogoColors(logoBuffer) {
+  try {
+    const smallBuffer = await sharp(logoBuffer)
+      .resize(80, 80, { fit: 'inside' })
+      .removeAlpha()
+      .raw()
+      .toBuffer();
+
+    const pixels = [];
+    for (let i = 0; i + 2 < smallBuffer.length; i += 12) { // every 4th pixel
+      const r = smallBuffer[i], g = smallBuffer[i+1], b = smallBuffer[i+2];
+      const brightness = (r + g + b) / 3;
+      if (brightness > 235 || brightness < 20) continue; // skip white/black bg
+      pixels.push([r, g, b]);
+    }
+
+    if (pixels.length < 5) {
+      return ['#FFD700', '#4B0082', '#FF6347', '#FFA500', '#FFFFFF'];
+    }
+
+    const toHex = ([r, g, b]) =>
+      '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+    // Sort by hue
+    const withHue = pixels.map(px => {
+      const [r, g, b] = [px[0]/255, px[1]/255, px[2]/255];
+      const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+      let h = 0;
+      if (d !== 0) {
+        if (max === r) h = ((g-b)/d + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b-r)/d + 2) / 6;
+        else h = ((r-g)/d + 4) / 6;
+      }
+      return { px, h };
+    });
+    withHue.sort((a, b) => a.h - b.h);
+
+    // Pick 5 evenly spaced samples
+    const step = Math.floor(withHue.length / 5);
+    return Array.from({ length: 5 }, (_, i) =>
+      toHex(withHue[Math.min(i * step, withHue.length - 1)].px)
+    );
+  } catch (err) {
+    console.error('Color extraction error:', err.message);
+    return ['#FFD700', '#4B0082', '#FF6347', '#FFA500', '#FFFFFF'];
+  }
+}
 
 // ─── Core generation logic (composite vertical pipeline) ───────────────────
-async function runGeneration({ template, logoDoc, overrides, size, stylePreset }) {
+async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt }) {
   // 1. Build Recraft style and payload
   const VALID_STYLES = {
     'realistic_image':                    'digital_illustration',
@@ -86,15 +113,24 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset }
   };
   const recraftStyle = VALID_STYLES[stylePreset] || 'digital_illustration';
 
+  // Download logo first to extract colors
+  const logoBuffer = await axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
+  const logoColors = await extractLogoColors(logoBuffer);
+
+  // Color priority: logo (most accurate) -> AI suggested -> template palette
+  const colorsToUse = (logoColors && logoColors.length >= 3) ? logoColors
+    : (aiSuggestedColors && aiSuggestedColors.length >= 3) ? aiSuggestedColors
+    : template.colorPalette;
+
   const recraftPayload = {
-    prompt: buildPrompt(template),
+    prompt: recraftScenePrompt || buildPrompt(template),
     model: 'recraftv3',
     style: recraftStyle,
     size: '1024x1536', // Use portrait hero image for best cropping
     n: 1,
     response_format: 'url',
     controls: {
-      colors: template.colorPalette
+      colors: colorsToUse
         .filter(hex => hex && hex.trim())
         .map(hex => hexToRgb(hex))
     }
@@ -117,11 +153,8 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset }
   const generatedImageUrl = recraftResponse.data.data[0].url;
   console.log('[Promo] Recraft image URL:', generatedImageUrl);
 
-  // 3. Download base image and logo
-  const [heroSceneBaseBuffer, logoBuffer] = await Promise.all([
-    axios.get(generatedImageUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
-    axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
-  ]);
+  // 3. Download base image
+  const heroSceneBaseBuffer = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
   // 4. Poster layout allocations
   const [W, H] = parseSize(size);
@@ -156,15 +189,14 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset }
     })
     .toBuffer();
 
-  // 6. Generate SVG buffers for each zone
-  const contact = parseContactInfo(logoDoc.address);
-  const z1Svg = buildZone1Header({ website: contact.website, email: contact.email }, W, zones.z1, template.colorPalette);
-  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, template.colorPalette, template.occasion);
-  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, template.colorPalette, template.occasion);
-  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, template.colorPalette);
-  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, template.colorPalette);
+  // 6. Generate SVG buffers for each zone using colorsToUse
+  const z1Svg = buildZone1Header({ website: logoDoc.website || '', email: logoDoc.email || '' }, W, zones.z1, colorsToUse);
+  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, colorsToUse, template.occasion);
+  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, colorsToUse, template.occasion);
+  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, colorsToUse);
+  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, colorsToUse);
   const z5Svg = buildZone5ProductIcons(overrides.productCategories, W, zones.z5);
-  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, template.colorPalette);
+  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, colorsToUse);
 
   // 7. Composite in array order
   let currentY = 0;
@@ -234,14 +266,19 @@ exports.listTemplates = async (req, res) => {
 
 exports.generatePromo = async (req, res) => {
   try {
-    const { templateId, logoId, size, stylePreset } = req.body;
+    const { templateId, logoId, size, stylePreset, aiSuggestedColors, recraftScenePrompt } = req.body;
     const userId = req.user.id;
 
-    if (!templateId || !logoId) {
-      return res.status(400).json({ error: 'Missing required fields: templateId, logoId' });
+    if (!logoId) {
+      return res.status(400).json({ error: 'Missing required field: logoId' });
     }
 
-    const template = await ImageTemplate.findById(templateId);
+    let template;
+    if (templateId) {
+      template = await ImageTemplate.findById(templateId);
+    } else {
+      template = await ImageTemplate.findOne({ occasion: 'default' });
+    }
     if (!template) return res.status(404).json({ error: 'Template not found' });
 
     const logoDoc = await Logo.findById(logoId);
@@ -262,7 +299,15 @@ exports.generatePromo = async (req, res) => {
       footerColumns: req.body.footerColumns || template.footerColumns || [],
     };
 
-    const finalImageBuffer = await runGeneration({ template, logoDoc, overrides, size, stylePreset });
+    const finalImageBuffer = await runGeneration({
+      template,
+      logoDoc,
+      overrides,
+      size,
+      stylePreset,
+      aiSuggestedColors,
+      recraftScenePrompt
+    });
 
     // Upload to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -276,8 +321,8 @@ exports.generatePromo = async (req, res) => {
         const newPromoPost = new PromoPost({
           user: userId,
           logo: logoId,
-          template: templateId,
-          occasion: template.occasion,
+          template: template._id,
+          occasion: req.body.occasion || template.occasion,
           size: size || template.aspectRatio || '1024x1024',
           userOverrides: overrides,
           generatedImageUrl: result.secure_url,
@@ -307,10 +352,17 @@ exports.regeneratePromo = async (req, res) => {
       templateId = existingPost.template,
       logoId = existingPost.logo,
       size = existingPost.size,
-      stylePreset
+      stylePreset,
+      aiSuggestedColors,
+      recraftScenePrompt
     } = req.body;
 
-    const template = await ImageTemplate.findById(templateId);
+    let template;
+    if (templateId) {
+      template = await ImageTemplate.findById(templateId);
+    } else {
+      template = await ImageTemplate.findOne({ occasion: 'default' });
+    }
     if (!template) return res.status(404).json({ error: 'Template not found' });
 
     const logoDoc = await Logo.findById(logoId);
@@ -331,7 +383,15 @@ exports.regeneratePromo = async (req, res) => {
       footerColumns: req.body.footerColumns || existingPost.userOverrides?.footerColumns || template.footerColumns || [],
     };
 
-    const finalImageBuffer = await runGeneration({ template, logoDoc, overrides, size, stylePreset });
+    const finalImageBuffer = await runGeneration({
+      template,
+      logoDoc,
+      overrides,
+      size,
+      stylePreset,
+      aiSuggestedColors,
+      recraftScenePrompt
+    });
 
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'promo_posts', resource_type: 'image' },
@@ -345,9 +405,9 @@ exports.regeneratePromo = async (req, res) => {
           if (oldMatch) await cloudinary.uploader.destroy(`promo_posts/${oldMatch[1]}`, { resource_type: 'image' });
         }
 
-        existingPost.template = templateId;
+        existingPost.template = template._id;
         existingPost.logo = logoId;
-        existingPost.occasion = template.occasion;
+        existingPost.occasion = req.body.occasion || template.occasion;
         existingPost.size = size || template.aspectRatio;
         existingPost.userOverrides = overrides;
         existingPost.generatedImageUrl = result.secure_url;
@@ -361,6 +421,77 @@ exports.regeneratePromo = async (req, res) => {
   } catch (error) {
     console.error('Regenerate promo error:', error?.response?.data || error.message);
     return res.status(500).json({ error: 'Server error while regenerating promo post' });
+  }
+};
+
+
+exports.aiFillContent = async (req, res) => {
+  try {
+    const { businessName, festivalName, sector, website, email } = req.body;
+
+    if (!businessName || !festivalName) {
+      return res.status(400).json({ error: 'businessName and festivalName are required' });
+    }
+
+    const systemPrompt = `You are an expert Indian marketing copywriter creating festival poster content for "${businessName}", a ${sector || 'business'} company. Always respond with ONLY valid JSON — no markdown, no explanation, no code fences.`;
+
+    const userPrompt = `Generate complete festival marketing poster content for "${festivalName}".
+Business: ${businessName} | Sector: ${sector || 'General'} | Website: ${website || ''} | Email: ${email || ''}
+
+CRITICAL: For all 'icon' fields in valuesRow, featuresBar, and footerColumns, do NOT use standard colored emojis (like 🎁, 🛡️, ✉, 🌐, 🛍️). Instead, ALWAYS use one of the following safe cross-platform unicode geometric/shape symbols: '★', '♥', '◆', '●', '✿', '✦', '❖', '▲', '■'.
+
+Return ONLY this JSON structure (no extra keys):
+{
+  "heroContent": {
+    "headline": "2-3 word greeting like Happy Diwali!",
+    "subheading": "3-6 word occasion tagline",
+    "bodyMessage": "2-3 warm sentences mentioning ${businessName} naturally",
+    "closingSlogan": "Short memorable closing line under 10 words",
+    "rightBoxQuote": "2-3 sentence inspirational festival quote"
+  },
+  "valuesRow": [
+    { "icon": "safe unicode symbol", "label": "ONE WORD", "sublabel": "3-4 word phrase" },
+    { "icon": "safe unicode symbol", "label": "ONE WORD", "sublabel": "3-4 word phrase" },
+    { "icon": "safe unicode symbol", "label": "ONE WORD", "sublabel": "3-4 word phrase" }
+  ],
+  "featuresBar": [
+    { "icon": "safe unicode symbol", "text": "SHORT MARKETING PHRASE IN CAPS." },
+    { "icon": "safe unicode symbol", "text": "SHORT MARKETING PHRASE IN CAPS." },
+    { "icon": "safe unicode symbol", "text": "SHORT MARKETING PHRASE IN CAPS." },
+    { "icon": "safe unicode symbol", "text": "SHORT MARKETING PHRASE IN CAPS." }
+  ],
+  "footerColumns": [
+    { "icon": "safe unicode symbol", "lines": ["LINE 1", "LINE 2", "LINE 3"], "highlight": "HIGHLIGHT PHRASE" },
+    { "icon": "safe unicode symbol", "lines": ["LINE 1", "LINE 2", "LINE 3"], "highlight": null },
+    { "icon": "safe unicode symbol", "lines": ["LINE 1", "LINE 2", "LINE 3"], "highlight": null },
+    { "icon": "safe unicode symbol", "lines": ["${businessName.toUpperCase()} \\u2014", "TAGLINE LINE", "BRAND LINE"], "highlight": "BRAND CALL TO ACTION." }
+  ],
+  "recraftScenePrompt": "Detailed Recraft AI scene description for ${festivalName} festival background. Flat 2D digital illustration style. No text, no people, no banners.",
+  "suggestedColors": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"]
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1200,
+      response_format: { type: 'json_object' },
+    });
+
+    const parsed = JSON.parse(completion.choices[0].message.content);
+
+    if (!parsed.heroContent || !parsed.valuesRow || !parsed.featuresBar || !parsed.footerColumns) {
+      throw new Error('GPT response missing required fields');
+    }
+
+    return res.status(200).json({ content: parsed });
+
+  } catch (error) {
+    console.error('AI fill error:', error?.response?.data || error.message);
+    return res.status(500).json({ error: 'Failed to generate AI content. Please try again.' });
   }
 };
 

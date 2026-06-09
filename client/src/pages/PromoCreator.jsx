@@ -9,11 +9,10 @@ const PromoCreator = () => {
   const token = localStorage.getItem('token');
 
   // Wizard Steps:
-  // 1: Choose Occasion/Template
-  // 2: Choose Business/Logo
-  // 3: Fill Text Slots (Hero, Values, Products, Footer)
-  // 4: Set Aspect Ratio & Style Presets
-  // 5: Preview & Generate
+  // 1: Brand & Occasion Selection + AI Fill
+  // 2: Review Content
+  // 3: Style & Size Preset
+  // 4: Preview & Generate
   const [currentStep, setCurrentStep] = useState(1);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [templates, setTemplates] = useState([]);
@@ -32,10 +31,21 @@ const PromoCreator = () => {
   const [footerColumns, setFooterColumns] = useState([]);
 
   const [aspectRatio, setAspectRatio] = useState("1024x1024");
-  const [stylePreset, setStylePreset] = useState("digital_illustration");
+  const [stylePreset, setStylePreset] = useState("digital_illustration/flat_design");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
   const [generatedResult, setGeneratedResult] = useState(null);
+
+  // AI Fill states
+  const [festivalName, setFestivalName] = useState('');
+  const [isAIFilling, setIsAIFilling] = useState(false);
+  const [aiGeneratedColors, setAiGeneratedColors] = useState([]);
+  const [aiScenePrompt, setAiScenePrompt] = useState('');
+
+  const FESTIVAL_CHIPS = [
+    'Diwali', 'Holi', 'Bhai Dooj', 'Eid Mubarak',
+    'Independence Day', 'Raksha Bandhan', 'Christmas', 'New Year'
+  ];
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -85,54 +95,61 @@ const PromoCreator = () => {
       rightBoxQuote: template.heroContent?.rightBoxQuote || "",
     });
 
-    // Initialize values row (3 items)
+    // Initialize values row (3 items) using safe unicode symbols
     setValuesRow(
       (template.valuesRow && template.valuesRow.length === 3)
-        ? template.valuesRow.map(v => ({ icon: v.icon || "", label: v.label || "", sublabel: v.sublabel || "" }))
+        ? template.valuesRow.map(v => ({ icon: v.icon || "★", label: v.label || "", sublabel: v.sublabel || "" }))
         : [
-            { icon: "🎨", label: "ENJOY", sublabel: "every moment" },
-            { icon: "❤️", label: "LOVE", sublabel: "that never ends" },
-            { icon: "✨", label: "CELEBRATE", sublabel: "togetherness" }
+            { icon: "★", label: "LOVE", sublabel: "that never ends" },
+            { icon: "◆", label: "JOY", sublabel: "every moment" },
+            { icon: "●", label: "CELEBRATE", sublabel: "togetherness" }
           ]
     );
 
-    // Initialize features bar (4 items)
+    // Initialize features bar (4 items) using safe unicode symbols
     setFeaturesBar(
       (template.featuresBar && template.featuresBar.length === 4)
-        ? template.featuresBar.map(f => ({ icon: f.icon || "", text: f.text || "" }))
+        ? template.featuresBar.map(f => ({ icon: f.icon || "★", text: f.text || "" }))
         : [
-            { icon: "🎁", text: "THOUGHTFUL GIFTS THAT BRING SMILES." },
-            { icon: "🛡️", text: "PREMIUM QUALITY. BUILT TO LAST." },
-            { icon: "❤️", text: "MADE TO DELIGHT. MADE FOR YOU." },
-            { icon: "🇮🇳", text: "PROUDLY DESIGNED IN INDIA." }
+            { icon: "★", text: "THOUGHTFUL GIFTS THAT BRING SMILES." },
+            { icon: "◆", text: "PREMIUM QUALITY. BUILT TO LAST." },
+            { icon: "♥", text: "MADE TO DELIGHT. MADE FOR YOU." },
+            { icon: "●", text: "PROUDLY DESIGNED IN INDIA." }
           ]
     );
 
     // Initialize product categories (user customizable list)
     setProductCategories(
       template.productCategories
-        ? template.productCategories.map(p => ({ icon: p.icon || "", name: p.name || "" }))
+        ? template.productCategories.map(p => ({ icon: p.icon || "★", name: p.name || "" }))
         : []
     );
 
-    // Initialize footer columns (4 columns)
+    // Initialize footer columns (4 columns) using safe unicode symbols
     setFooterColumns(
       (template.footerColumns && template.footerColumns.length === 4)
         ? template.footerColumns.map(col => ({
-            icon: col.icon || "",
+            icon: col.icon || "★",
             lines: col.lines ? col.lines.join('\n') : "",
             highlight: col.highlight || ""
           }))
         : [
-            { icon: "✨", lines: "", highlight: "" },
-            { icon: "✨", lines: "", highlight: "" },
-            { icon: "✨", lines: "", highlight: "" },
-            { icon: "✨", lines: "", highlight: "" }
+            { icon: "★", lines: "", highlight: "" },
+            { icon: "◆", lines: "", highlight: "" },
+            { icon: "♥", lines: "", highlight: "" },
+            { icon: "●", lines: "", highlight: "" }
           ]
     );
 
     setAspectRatio(template.aspectRatio || "1024x1024");
   };
+
+  // Automatically select the default template once templates are loaded
+  useEffect(() => {
+    if (templates.length > 0 && !selectedTemplate) {
+      handleSelectTemplate(templates[0]);
+    }
+  }, [templates, selectedTemplate]);
 
   // Handle selecting business
   const handleSelectBusiness = (biz) => {
@@ -179,14 +196,53 @@ const PromoCreator = () => {
     setFooterColumns(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
   };
 
-  const handleNext = () => {
-    if (currentStep === 1 && !selectedTemplate) {
-      toast.warning("Please select an occasion template first.");
+  const handleAIFill = async () => {
+    if (!selectedBusiness || !festivalName.trim()) {
+      toast.warning('Select a business and enter the festival name first.');
       return;
     }
-    if (currentStep === 2 && !selectedBusiness) {
-      toast.warning("Please select a business logo profile first.");
-      return;
+    setIsAIFilling(true);
+    try {
+      const res = await axios.post(`${BACKEND_URL}/api/promo/ai-fill`, {
+        businessName: selectedBusiness.name,
+        festivalName: festivalName.trim(),
+        sector: selectedBusiness.sector || '',
+        website: selectedBusiness.website || '',
+        email: selectedBusiness.email || '',
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      const { content } = res.data;
+      setHeroContent(content.heroContent);
+      setValuesRow(content.valuesRow);
+      setFeaturesBar(content.featuresBar);
+      setFooterColumns(content.footerColumns.map(col => ({
+        ...col,
+        lines: Array.isArray(col.lines) ? col.lines.join('\n') : (col.lines || ''),
+      })));
+      setAiGeneratedColors(content.suggestedColors || []);
+      setAiScenePrompt(content.recraftScenePrompt || '');
+
+      toast.success('✨ AI filled all content! Review and edit in Step 2.');
+      setCurrentStep(2);
+    } catch (err) {
+      console.error('AI fill error:', err);
+      toast.error('AI fill failed. You can still enter details manually.');
+      setCurrentStep(2); // still advance so user can fill manually
+    } finally {
+      setIsAIFilling(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentStep === 1) {
+      if (!selectedBusiness) {
+        toast.warning("Please select a business logo profile first.");
+        return;
+      }
+      if (!festivalName.trim()) {
+        toast.warning("Please enter the festival/occasion name.");
+        return;
+      }
     }
     setCurrentStep(prev => prev + 1);
   };
@@ -212,7 +268,7 @@ const PromoCreator = () => {
       setGenerationProgress("Uploading high-resolution poster to Cloudinary...");
 
       const payload = {
-        templateId: selectedTemplate._id,
+        templateId: selectedTemplate ? selectedTemplate._id : undefined,
         logoId: selectedBusiness._id,
         size: aspectRatio,
         stylePreset: stylePreset,
@@ -224,7 +280,10 @@ const PromoCreator = () => {
           icon: col.icon,
           lines: col.lines.split('\n').map(l => l.trim()).filter(Boolean),
           highlight: col.highlight || null
-        }))
+        })),
+        aiSuggestedColors: aiGeneratedColors,
+        recraftScenePrompt: aiScenePrompt,
+        occasion: festivalName.trim()
       };
 
       const res = await axios.post(`${BACKEND_URL}/api/promo/generate`, payload, {
@@ -234,7 +293,7 @@ const PromoCreator = () => {
       if (res.data && res.data.promoPost) {
         setGeneratedResult(res.data.promoPost);
         toast.success("Marketing poster generated successfully!");
-        setCurrentStep(5);
+        setCurrentStep(4);
       } else {
         toast.error("Generation failed. Please try again.");
       }
@@ -312,7 +371,7 @@ const PromoCreator = () => {
           
           {/* Progress bar */}
           <div className="flex items-center justify-between mt-8 max-w-lg mx-auto">
-            {[1, 2, 3, 4, 5].map((step) => (
+            {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center flex-1 last:flex-none">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 transition-all duration-300 ${
                   currentStep >= step 
@@ -321,7 +380,7 @@ const PromoCreator = () => {
                 }`}>
                   {step}
                 </div>
-                {step < 5 && (
+                {step < 4 && (
                   <div className={`h-1 flex-1 mx-2 rounded transition-all duration-300 ${
                     currentStep > step ? "bg-white" : "bg-red-300"
                   }`} />
@@ -330,9 +389,8 @@ const PromoCreator = () => {
             ))}
           </div>
           <div className="flex justify-between max-w-lg mx-auto text-xs text-red-100 mt-2 px-1">
-            <span>Template</span>
-            <span>Brand / Logo</span>
-            <span>Content</span>
+            <span>Occasion & Brand</span>
+            <span>Review Content</span>
             <span>Style & Size</span>
             <span>Review & Save</span>
           </div>
@@ -340,116 +398,125 @@ const PromoCreator = () => {
 
         <div className="p-8">
           
-          {/* STEP 1: Select Occasion/Template */}
+          {/* STEP 1: Occasion & Brand Selection */}
           {currentStep === 1 && (
-            <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Select an Occasion Template</h2>
-              <p className="text-sm text-gray-500 mb-6">Choose a base design template. Each template defines specific layout areas (bounding boxes) for your text and graphics.</p>
-              
-              {loadingTemplates ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF6666]"></div>
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">No templates found. Please run the seeding script first.</div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {templates.map((temp) => (
-                    <div 
-                      key={temp._id}
-                      onClick={() => handleSelectTemplate(temp)}
-                      className={`cursor-pointer rounded-xl p-5 border-2 transition-all duration-200 ${
-                        selectedTemplate?._id === temp._id 
-                          ? "border-[#FF6666] bg-red-50/50 shadow-md" 
-                          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                      }`}
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Select Business Profile / Logo</h2>
+                <p className="text-sm text-gray-500 mb-4">Choose which business details and logo to composite onto the generated marketing poster.</p>
+                
+                {loadingBusinesses ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF6666]"></div>
+                  </div>
+                ) : businesses.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p className="text-gray-500 mb-3 text-sm">No business profiles found. Please add a business profile first.</p>
+                    <button 
+                      onClick={() => navigate('/home')}
+                      className="px-4 py-2 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white rounded-lg text-sm font-bold shadow hover:opacity-90 transition-all cursor-pointer"
                     >
-                      <h3 className="font-bold text-gray-800 text-lg mb-1">{temp.name}</h3>
-                      <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full uppercase tracking-wider font-semibold mb-3">
-                        {temp.occasion.replace('_', ' ')}
-                      </span>
-                      <div className="text-xs text-gray-400 space-y-1">
-                        <div>Aspect Ratio: {temp.aspectRatio}</div>
-                        <div>Type: 6-Zone Infographic</div>
+                      Go to Add Business
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-48 overflow-y-auto p-1 border border-gray-100 rounded-lg">
+                    {businesses.map((biz) => (
+                      <div 
+                        key={biz._id}
+                        onClick={() => handleSelectBusiness(biz)}
+                        className={`cursor-pointer rounded-xl p-4 border-2 flex items-center gap-4 transition-all duration-200 ${
+                          selectedBusiness?._id === biz._id 
+                            ? "border-[#FF6666] bg-red-50/50 shadow-sm" 
+                            : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 p-1.5 flex items-center justify-center border border-gray-200 shrink-0">
+                          {biz.images?.url ? (
+                            <img src={biz.images.url} alt={biz.name} className="max-w-full max-h-full object-contain" />
+                          ) : (
+                            <span className="text-[10px] text-gray-400 font-medium">No Logo</span>
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-800 text-sm leading-snug">{biz.name}</h3>
+                          <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{biz.sector || "General Sector"}</p>
+                        </div>
                       </div>
-                      
-                      {/* Color Palette Preview */}
-                      <div className="flex gap-1.5 mt-4">
-                        {temp.colorPalette.map((hex, idx) => (
-                          <div 
-                            key={idx} 
-                            className="w-5 h-5 rounded-full border border-gray-100" 
-                            style={{ backgroundColor: hex }} 
-                            title={hex}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Enter Festival / Occasion</h2>
+                <p className="text-sm text-gray-500 mb-4">Type the name of the festival or marketing campaign you want to generate.</p>
+                
+                <div className="space-y-4 max-w-lg">
+                  <div>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Diwali, Holi, Independence Day, Independence Day Sale"
+                      value={festivalName}
+                      onChange={(e) => setFestivalName(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#FF6666] focus:border-transparent transition-all font-semibold"
+                    />
+                  </div>
+
+                  {/* Chips */}
+                  <div className="flex flex-wrap gap-2">
+                    {FESTIVAL_CHIPS.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setFestivalName(chip)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                          festivalName === chip
+                            ? "bg-[#FF6666] text-white border-[#FF6666]"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* AI Fill Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleAIFill}
+                      disabled={isAIFilling}
+                      className="relative overflow-hidden w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isAIFilling ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          <span>AI is writing copy...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-lg">✨</span>
+                          <span>Generate with AI</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[11px] text-gray-400 mt-2">OpenAI GPT-4o-mini will write high-converting copy for all zones in ~2 seconds.</p>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* STEP 2: Choose Business/Logo */}
+          {/* STEP 2: Edit Poster Content */}
           {currentStep === 2 && (
-            <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Select Business Profile / Logo</h2>
-              <p className="text-sm text-gray-500 mb-6">Choose which business details and logo to composite onto the generated marketing poster.</p>
-              
-              {loadingBusinesses ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF6666]"></div>
-                </div>
-              ) : businesses.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-xl p-6 border border-dashed border-gray-300">
-                  <p className="text-gray-500 mb-4">No business profiles found. You must add at least one business with a logo first.</p>
-                  <button 
-                    onClick={() => navigate('/home')}
-                    className="px-5 py-2 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white rounded-lg font-bold shadow hover:opacity-90 transition-all cursor-pointer"
-                  >
-                    Go to All Business & Add
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {businesses.map((biz) => (
-                    <div 
-                      key={biz._id}
-                      onClick={() => handleSelectBusiness(biz)}
-                      className={`cursor-pointer rounded-xl p-5 border-2 flex items-center gap-4 transition-all duration-200 ${
-                        selectedBusiness?._id === biz._id 
-                          ? "border-[#FF6666] bg-red-50/50 shadow-md" 
-                          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="w-16 h-16 rounded-lg bg-gray-100 p-2 flex items-center justify-center border border-gray-200 shrink-0">
-                        {biz.images?.url ? (
-                          <img src={biz.images.url} alt={biz.name} className="max-w-full max-h-full object-contain" />
-                        ) : (
-                          <span className="text-xs text-gray-400 font-medium">No Logo</span>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-800 text-lg leading-snug">{biz.name}</h3>
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{biz.address || "No contact info saved"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 3: Fill Text Slots */}
-          {currentStep === 3 && (
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-2">Edit Poster Content</h2>
               <p className="text-sm text-gray-500 mb-6">Customize the content for each of the poster zones. The layout will be dynamically composited on the server.</p>
               
               <div className="space-y-8 max-w-2xl">
                 
-                {/* 3A: Hero Content */}
+                {/* Hero Content */}
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>📝</span> Zone 2 — Hero & Slogans
@@ -505,7 +572,7 @@ const PromoCreator = () => {
                   </div>
                 </div>
 
-                {/* 3B: Values Row */}
+                {/* Values Row */}
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>🌟</span> Zone 3 — Values Row (3 Columns)
@@ -541,7 +608,7 @@ const PromoCreator = () => {
                   </div>
                 </div>
 
-                {/* 3C: Product Categories */}
+                {/* Product Categories */}
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -587,7 +654,7 @@ const PromoCreator = () => {
                   </div>
                 </div>
 
-                {/* 3D: Footer Columns */}
+                {/* Footer Columns */}
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>📋</span> Zone 6 — Footer Columns (4 Columns)
@@ -619,7 +686,7 @@ const PromoCreator = () => {
                           <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Highlight (Optional)</label>
                           <input 
                             type="text" 
-                            placeholder="Gold highlighted text"
+                            placeholder="Highlighted text"
                             value={col.highlight} 
                             onChange={(e) => handleFooterChange(idx, 'highlight', e.target.value)}
                             className="w-full border border-gray-300 rounded-md p-1.5 text-xs"
@@ -634,8 +701,8 @@ const PromoCreator = () => {
             </div>
           )}
 
-          {/* STEP 4: Size and Presets */}
-          {currentStep === 4 && (
+          {/* STEP 3: Style and Presets */}
+          {currentStep === 3 && (
             <div>
               <h2 className="text-xl font-bold text-gray-800 mb-4">Style & Dimensions</h2>
               <p className="text-sm text-gray-500 mb-6">Fine-tune the output format and Recraft V3 graphic render model preset.</p>
@@ -690,8 +757,8 @@ const PromoCreator = () => {
             </div>
           )}
 
-          {/* STEP 5: Preview & Generate / Result */}
-          {currentStep === 5 && (
+          {/* STEP 4: Preview & Generate / Result */}
+          {currentStep === 4 && (
             <div>
               {generatedResult ? (
                 <div className="text-center py-6">
@@ -716,9 +783,12 @@ const PromoCreator = () => {
                     <button 
                       onClick={() => {
                         setGeneratedResult(null);
+                        setFestivalName('');
+                        setAiGeneratedColors([]);
+                        setAiScenePrompt('');
                         setCurrentStep(1);
                       }}
-                      className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all"
+                      className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all cursor-pointer"
                     >
                       Create Another
                     </button>
@@ -730,8 +800,8 @@ const PromoCreator = () => {
                   
                   <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 space-y-4 mb-6">
                     <div className="flex justify-between border-b border-gray-100 pb-2">
-                      <span className="text-sm text-gray-500">Occasion Template</span>
-                      <span className="text-sm font-bold text-gray-800">{selectedTemplate?.name}</span>
+                      <span className="text-sm text-gray-500">Occasion Name</span>
+                      <span className="text-sm font-bold text-gray-800 capitalize">{festivalName}</span>
                     </div>
                     <div className="flex justify-between border-b border-gray-100 pb-2">
                       <span className="text-sm text-gray-500">Brand Logo Profile</span>
@@ -775,12 +845,22 @@ const PromoCreator = () => {
                       <p className="text-xs text-gray-400 mt-2">Please wait. AI rendering takes 10-15 seconds.</p>
                     </div>
                   ) : (
-                    <button
-                      onClick={handleGenerate}
-                      className="w-full py-4 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-extrabold text-lg rounded-xl shadow-lg hover:opacity-95 active:scale-95 transition-all cursor-pointer"
-                    >
-                      ⚡ Generate Promo Poster
-                    </button>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="px-6 py-4 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all cursor-pointer"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleGenerate}
+                        className="flex-1 py-4 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-extrabold text-lg rounded-xl shadow-lg hover:opacity-95 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>⚡</span>
+                        <span>Generate Promo Poster</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
@@ -788,7 +868,7 @@ const PromoCreator = () => {
           )}
 
           {/* Navigation Controls */}
-          {currentStep < 5 && !isGenerating && (
+          {currentStep < 4 && !isGenerating && (
             <div className="flex justify-between mt-10 pt-6 border-t border-gray-100">
               <button
                 type="button"
@@ -803,23 +883,13 @@ const PromoCreator = () => {
                 Back
               </button>
 
-              {currentStep < 4 ? (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-6 py-2.5 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-bold rounded-lg shadow hover:opacity-90 transition-all cursor-pointer"
-                >
-                  Continue
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-6 py-2.5 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-bold rounded-lg shadow hover:opacity-90 transition-all cursor-pointer"
-                >
-                  Go to Preview
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleNext}
+                className="px-6 py-2.5 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-bold rounded-lg shadow hover:opacity-90 transition-all cursor-pointer"
+              >
+                {currentStep === 3 ? "Go to Preview" : "Continue"}
+              </button>
             </div>
           )}
 

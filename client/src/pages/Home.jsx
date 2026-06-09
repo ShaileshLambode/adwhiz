@@ -24,6 +24,9 @@ const Home = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [businessAddress, setBusinessAddress] = useState('');
+  const [website, setWebsite] = useState('');
+  const [email, setEmail] = useState('');
+  const [businessSector, setBusinessSector] = useState('');
   const [previewImage, setPreviewImage] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [logoFiles, setLogoFiles] = useState(null);
@@ -110,6 +113,9 @@ const Home = () => {
   const openAddModal = () => {
     setBusinessName('');
     setBusinessAddress('');
+    setWebsite('');
+    setEmail('');
+    setBusinessSector('');
     setLogoFile(null);
     setPreviewImage('');
     setIsEditMode(false);
@@ -122,6 +128,9 @@ const Home = () => {
   const openEditModal = (business) => {
     setBusinessName(business.name);
     setBusinessAddress(business.address);
+    setWebsite(business.website || '');
+    setEmail(business.email || '');
+    setBusinessSector(business.sector || '');
     setPreviewImage(business.images?.url || '');
     setLogoFile(null);
     setIsEditMode(true);
@@ -137,6 +146,9 @@ const Home = () => {
     const formData = new FormData();
     formData.append('name', businessName);
     formData.append('address', businessAddress);
+    formData.append('website', website);
+    formData.append('email', email);
+    formData.append('sector', businessSector);
 
     if (logoFile) {
       formData.append('image', logoFile);
@@ -178,6 +190,9 @@ const Home = () => {
         setIsModalOpen(false);
         setBusinessName('');
         setBusinessAddress('');
+        setWebsite('');
+        setEmail('');
+        setBusinessSector('');
         setLogoFile(null);
         setPreviewImage('');
         fetchlogo();
@@ -514,6 +529,48 @@ const Home = () => {
                     placeholder="Name"
                     required
                   />
+                </div>
+
+                <div className="mb-2">
+                  <label className="block text-gray-700 mb-1 text-sm">Website URL</label>
+                  <input
+                    type="text"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="e.g. www.mybusiness.com"
+                  />
+                </div>
+
+                <div className="mb-2">
+                  <label className="block text-gray-700 mb-1 text-sm">Email Address</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="e.g. info@mybusiness.com"
+                  />
+                </div>
+
+                <div className="mb-2">
+                  <label className="block text-gray-700 mb-1 text-sm">Business Sector</label>
+                  <select
+                    value={businessSector}
+                    onChange={(e) => setBusinessSector(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                  >
+                    <option value="">Select Sector</option>
+                    <option value="AI / Technology">AI / Technology</option>
+                    <option value="Retail / E-commerce">Retail / E-commerce</option>
+                    <option value="Fashion / Clothing">Fashion / Clothing</option>
+                    <option value="Food / Restaurant">Food / Restaurant</option>
+                    <option value="Health / Wellness">Health / Wellness</option>
+                    <option value="Education">Education</option>
+                    <option value="Real Estate">Real Estate</option>
+                    <option value="Finance / Insurance">Finance / Insurance</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div className="mb-2">
