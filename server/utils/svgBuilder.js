@@ -28,6 +28,41 @@ function wrapText(text, maxChars) {
 }
 
 /**
+ * Auto-fit: find the largest fontSize where all lines fit within availableHeight
+ * and no single line exceeds availableWidth.
+ *
+ * @param {string} text - Raw text to wrap and fit
+ * @param {number} availableW - Pixel width available for text
+ * @param {number} availableH - Pixel height available for all lines combined
+ * @param {number} maxFontSize - Start here and reduce
+ * @param {number} minFontSize - Never go below this
+ * @param {number} lineHeightMult - lineGap = fontSize * lineHeightMult
+ * @returns {{ fontSize: number, lines: string[], lineGap: number }}
+ */
+function autoFitText(text, availableW, availableH, maxFontSize, minFontSize = 8, lineHeightMult = 1.45) {
+  let fontSize = maxFontSize;
+  while (fontSize >= minFontSize) {
+    const charWidth    = fontSize * 0.58;           // Arial average char width
+    const maxChars     = Math.floor(availableW / charWidth);
+    const wrappedLines = wrapText(text, maxChars);
+    const lineGap      = fontSize * lineHeightMult;
+    const totalH       = wrappedLines.length * lineGap;
+    if (totalH <= availableH) {
+      return { fontSize, lines: wrappedLines, lineGap };
+    }
+    fontSize -= 1;
+  }
+  // Minimum fallback
+  const charWidth = minFontSize * 0.58;
+  const maxChars  = Math.floor(availableW / charWidth);
+  return {
+    fontSize: minFontSize,
+    lines: wrapText(text, maxChars),
+    lineGap: minFontSize * lineHeightMult
+  };
+}
+
+/**
  * ZONE 1 — HEADER BAR (Logo left, Tagline center, Contact right)
  */
 exports.buildZone1Header = (data, W, H1, palette = {}) => {
@@ -113,19 +148,20 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
 
   let content = '';
   let y = Math.floor(panelH * 0.10) + headlineSize;
+  const leftX = Math.floor(panelW * 0.08);
 
   // Headline — wrap at 15 characters to keep standard greetings on a single line
   const headlineLines = wrapText(headline, 15);
   headlineLines.forEach((line, i) => {
-    content += `<text x="${panelW / 2}" y="${y + i * (headlineSize * 1.05)}"
-      text-anchor="middle" font-family="Arial, sans-serif"
+    content += `<text x="${leftX}" y="${y + i * (headlineSize * 1.05)}"
+      text-anchor="start" font-family="Arial, sans-serif"
       font-size="${headlineSize}" font-weight="900"
       fill="${headlineColor}" letter-spacing="1">${line.toUpperCase()}</text>`;
   });
   y += headlineLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.025);
 
   // Ornamental divider — diamond center with lines on each side
-  const dMid = panelW / 2;
+  const dMid = leftX + 55;
   content += `
     <line x1="${dMid - 55}" y1="${y}" x2="${dMid - 8}" y2="${y}"
       stroke="${subheadingColor}" stroke-width="1.2" opacity="0.65"/>
@@ -137,8 +173,8 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
 
   // Subheading
   if (subheading) {
-    content += `<text x="${panelW / 2}" y="${y}"
-      text-anchor="middle" font-family="Arial, sans-serif"
+    content += `<text x="${leftX}" y="${y}"
+      text-anchor="start" font-family="Arial, sans-serif"
       font-size="${subheadingSize}" font-weight="700"
       fill="${subheadingColor}" letter-spacing="2">${subheading.toUpperCase()}</text>`;
     y += Math.floor(panelH * 0.075);
@@ -147,8 +183,8 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
   // Body copy
   const lineGap = Math.floor(bodySize * 1.45);
   bodyLines.forEach(line => {
-    content += `<text x="${panelW / 2}" y="${y}"
-      text-anchor="middle" font-family="Arial, sans-serif"
+    content += `<text x="${leftX}" y="${y}"
+      text-anchor="start" font-family="Arial, sans-serif"
       font-size="${bodySize}" fill="${bodyTextColor}" opacity="0.92">${esc(line)}</text>`;
     y += lineGap;
   });
@@ -170,8 +206,8 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
     }
 
     sloganLines.forEach(line => {
-      content += `<text x="${panelW / 2}" y="${sy}"
-        text-anchor="middle" font-family="Arial, sans-serif"
+      content += `<text x="${leftX}" y="${sy}"
+        text-anchor="start" font-family="Arial, sans-serif"
         font-size="${sloganSize}" font-style="italic" font-weight="700"
         fill="${sloganColor}">${esc(line)}</text>`;
       sy += sloganLineGap;
@@ -183,7 +219,7 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
     <defs>
       <linearGradient id="panelFade" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%"   stop-color="${panelBg}" stop-opacity="1"/>
-        <stop offset="78%"  stop-color="${panelBg}" stop-opacity="1"/>
+        <stop offset="88%"  stop-color="${panelBg}" stop-opacity="1"/>
         <stop offset="100%" stop-color="${panelBg}" stop-opacity="0"/>
       </linearGradient>
     </defs>
@@ -198,49 +234,54 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
  * ZONE 2R — DECORATIVE QUOTE BOX (Overlaid on Recraft background on right half)
  */
 exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = '') => {
-  const text = esc(quote || '');
-  const primaryAccent = palette.iconCircleColor || '#FFD700'; 
+  const text = quote || '';
+
+  const paddingX   = 18;
+  const iconSpace  = 44;   // top area reserved for icon
+  const paddingBot = 14;
+  const availableW = boxW - paddingX * 2;
+  const availableH = boxH - iconSpace - paddingBot;
+
+  const { fontSize, lines, lineGap } = autoFitText(
+    text,
+    availableW,
+    availableH,
+    Math.floor(boxH * 0.085),  // maxFontSize scales with box height
+    9,
+    1.5
+  );
+
+  const midX = boxW / 2;
+  const primaryAccent  = palette.iconCircleColor    || '#FFD700';
   const secondaryAccent = palette.featureBorderColor || '#FF6347';
-
-  // Determine background and borders
-  const boxBg = 'rgba(255, 255, 255, 0.88)';
-  const borderColor = primaryAccent;
-  const quoteLines = wrapText(text, 22);
-
-  // Select top icon
-  let topIcon = '🪔';
-  if (occasion === 'holi') topIcon = '🌸';
-  else if (occasion === 'bhai_dooj') topIcon = '❤️';
-  else if (occasion === 'eid') topIcon = '🌙';
-  else if (occasion === 'independence_day') topIcon = '🇮🇳';
-  else if (occasion === 'generic_sale') topIcon = '🎁';
-
+  let currentY = iconSpace;
   let textElements = '';
-  let currentY = 55;
-  const fontSize = 11;
-  const lineGap = 16;
 
-  // Icon
-  textElements += `<text x="${boxW / 2}" y="35" text-anchor="middle" font-size="16">${topIcon}</text>`;
+  // Icon — SVG path/unicode shape, not emoji (reliable on all servers)
+  textElements += `
+    <circle cx="${midX}" cy="22" r="11"
+      stroke="${primaryAccent}" stroke-width="1.5"
+      fill="${primaryAccent}" fill-opacity="0.1"/>
+    <text x="${midX}" y="27" text-anchor="middle"
+      font-family="Arial, sans-serif" font-size="12"
+      fill="${primaryAccent}">★</text>`;
 
-  // Lines
-  quoteLines.forEach(line => {
-    textElements += `<text x="${boxW / 2}" y="${currentY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-style="italic" font-weight="bold" fill="#333333">
-      ${line}
-    </text>`;
+  lines.forEach(line => {
+    textElements += `
+    <text x="${midX}" y="${currentY}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${fontSize}" font-style="italic" font-weight="600"
+      fill="#333333">${esc(line)}</text>`;
     currentY += lineGap;
   });
 
-  const svg = `<svg width="${boxW}" height="${boxH}" xmlns="http://www.w3.org/2000/svg">
-    <!-- Outer boundary double border -->
-    <rect x="5" y="5" width="${boxW - 10}" height="${boxH - 10}" rx="10" fill="${boxBg}" stroke="${borderColor}" stroke-width="2" />
-    <rect x="10" y="10" width="${boxW - 20}" height="${boxH - 20}" rx="7" fill="none" stroke="${secondaryAccent}" stroke-width="1" stroke-dasharray="4,3" />
-    
-    <!-- Contents -->
+  return Buffer.from(`<svg width="${boxW}" height="${boxH}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="${boxW-8}" height="${boxH-8}" rx="10"
+      fill="rgba(255,255,255,0.88)" stroke="${primaryAccent}" stroke-width="2"/>
+    <rect x="9" y="9" width="${boxW-18}" height="${boxH-18}" rx="7"
+      fill="none" stroke="${secondaryAccent}" stroke-width="1" stroke-dasharray="4,3"/>
     ${textElements}
-  </svg>`;
-
-  return Buffer.from(svg);
+  </svg>`);
 };
 
 /**
@@ -252,6 +293,9 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
   const colW = W / 3;
   const circleR = Math.floor(H3 * 0.24);
   const iconSize = Math.floor(circleR * 1.1);
+
+  const labelSize    = Math.max(Math.floor(W * 0.013), 11);  // ~13px at 1024px wide
+  const sublabelSize = Math.max(Math.floor(W * 0.009), 8);   // ~9px at 1024px wide
 
   let content = '';
   for (let i = 0; i < 3; i++) {
@@ -266,15 +310,28 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     content += `<text x="${cx}" y="${H3 * 0.36 + iconSize * 0.38}"
       text-anchor="middle" font-size="${iconSize}"
       font-family="Arial, sans-serif" fill="${iconCircleColor}">${esc(item.icon || '★')}</text>`;
-    // Label
-    content += `<text x="${cx}" y="${H3 * 0.70}"
-      text-anchor="middle" font-family="Arial, sans-serif"
-      font-size="${Math.floor(H3 * 0.12)}" font-weight="800"
-      fill="#1A1A1A" letter-spacing="1">${esc(item.label || '').toUpperCase()}</text>`;
-    // Sublabel
-    content += `<text x="${cx}" y="${H3 * 0.87}"
-      text-anchor="middle" font-family="Arial, sans-serif"
-      font-size="${Math.floor(H3 * 0.085)}" fill="#777777">${esc(item.sublabel || '')}</text>`;
+
+    // Label — wrapped to column width
+    const labelAvailW = colW * 0.82;
+    const labelChars  = Math.floor(labelAvailW / (labelSize * 0.65));
+    const labelLines  = wrapText(item.label || '', labelChars);
+    labelLines.forEach((line, idx) => {
+      content += `<text x="${cx}" y="${H3 * 0.68 + idx * labelSize * 1.25}"
+        text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="${labelSize}" font-weight="800"
+        fill="#1A1A1A" letter-spacing="1">${esc(line).toUpperCase()}</text>`;
+    });
+
+    // Sublabel — wrapped to column width
+    const subAvailW = colW * 0.78;
+    const subChars  = Math.floor(subAvailW / (sublabelSize * 0.6));
+    const subLines  = wrapText(item.sublabel || '', subChars);
+    subLines.forEach((line, idx) => {
+      content += `<text x="${cx}" y="${H3 * 0.81 + idx * sublabelSize * 1.3}"
+        text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="${sublabelSize}" fill="#666666">${esc(line)}</text>`;
+    });
+
     // Divider
     if (i < 2) {
       content += `<line x1="${(i+1)*colW}" y1="${H3*0.12}" x2="${(i+1)*colW}" y2="${H3*0.88}"
@@ -294,35 +351,52 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
  * ZONE 4 — MARKETING FEATURES BAR (4-column horizontal features row)
  */
 exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
-  const zoneBgTint         = palette.zoneBgTint         || '#FAFAFA';
-  const featureBorderColor = palette.featureBorderColor  || '#AAAAAA';
+  const zoneBgTint         = palette.zoneBgTint        || '#FAFAFA';
+  const featureBorderColor = palette.featureBorderColor || '#AAAAAA';
   const colW = W / 4;
   const padX = Math.floor(colW * 0.08);
   const padY = Math.floor(H4 * 0.12);
 
+  // Text area inside badge, below icon
+  const iconBottomY  = Math.floor(H4 * 0.50);  // icon sits at ~42%, bottom at ~50%
+  const badgeBottomY = H4 - padY;
+  const textAreaH    = badgeBottomY - iconBottomY - 4;
+  const badgeInnerW  = colW - padX * 2 - 10;
+
   let content = '';
   for (let i = 0; i < 4; i++) {
     const item = features[i] || { icon: '★', text: 'FEATURE' };
-    const cx = i * colW + colW / 2;
+    const cx   = i * colW + colW / 2;
 
-    // Rounded pill badge border around the whole column cell
+    // Auto-fit text into badge text area
+    const { fontSize, lines, lineGap } = autoFitText(
+      item.text || '',
+      badgeInnerW,
+      textAreaH,
+      Math.floor(H4 * 0.095),
+      7,
+      1.35
+    );
+
+    // Badge border
     content += `<rect x="${i * colW + padX}" y="${padY}"
       width="${colW - padX * 2}" height="${H4 - padY * 2}"
       rx="7" fill="none"
       stroke="${featureBorderColor}" stroke-width="1.3" opacity="0.55"/>`;
+
     // Icon
     content += `<text x="${cx}" y="${H4 * 0.42}"
       text-anchor="middle" font-family="Arial, sans-serif"
       font-size="${Math.floor(H4 * 0.22)}" fill="${featureBorderColor}">${esc(item.icon || '★')}</text>`;
-    // Text
-    const lines = wrapText(item.text || '', 20);
+
+    // Auto-fitted text lines
     lines.forEach((line, idx) => {
-      content += `<text x="${cx}" y="${H4 * 0.64 + idx * Math.floor(H4 * 0.13)}"
+      content += `<text x="${cx}" y="${iconBottomY + (idx + 1) * lineGap}"
         text-anchor="middle" font-family="Arial, sans-serif"
-        font-size="${Math.floor(H4 * 0.095)}" font-weight="700"
+        font-size="${fontSize}" font-weight="700"
         fill="#333333">${esc(line).toUpperCase()}</text>`;
     });
-    // Vertical separator
+
     if (i < 3) {
       content += `<line x1="${(i+1)*colW}" y1="${H4*0.15}" x2="${(i+1)*colW}" y2="${H4*0.85}"
         stroke="#E0E0E0" stroke-width="1"/>`;
@@ -385,42 +459,71 @@ exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
 exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
   const footerBg     = palette.footerBg        || '#16213E';
   const footerAccent = palette.footerTextAccent || '#FFD700';
-  const colW = W / 4;
+  const colW         = W / 4;
+  const iconW        = 36;
+  const leftPad      = 16;
+  const textXOffset  = iconW + leftPad;
+  const availTextW   = colW - textXOffset - 8;
+  const linesAreaH   = Math.floor(H6 * 0.75);
+
+  // Find shared font size: smallest that fits all columns
+  let sharedFontSize = Math.floor(H6 * 0.095);
+  while (sharedFontSize >= 7) {
+    const charW    = sharedFontSize * 0.58;
+    const maxChars = Math.floor(availTextW / charW);
+    const lineGap  = sharedFontSize * 1.4;
+    let fits = true;
+    for (const col of footerColumns) {
+      const allLines = [...(col.lines || []), col.highlight || ''].filter(Boolean);
+      const wrapped  = allLines.flatMap(l => wrapText(l, maxChars));
+      if (wrapped.length * lineGap > linesAreaH) { fits = false; break; }
+    }
+    if (fits) break;
+    sharedFontSize -= 1;
+  }
+
+  const charW    = sharedFontSize * 0.58;
+  const maxChars = Math.floor(availTextW / charW);
+  const lineGap  = sharedFontSize * 1.4;
 
   let content = '';
   for (let i = 0; i < 4; i++) {
-    const col = footerColumns[i] || { icon: '★', lines: [], highlight: '' };
-    const iconX   = i * colW + 20;
-    const textX   = i * colW + 44;
-    const fontSize = Math.floor(H6 * 0.09);
-    const lineGap  = Math.floor(fontSize * 1.45);
+    const col   = footerColumns[i] || { icon: '★', lines: [], highlight: '' };
+    const colX  = i * colW;
+    const iconX = colX + leftPad;
+    const textX = colX + textXOffset;
 
-    // Column icon
-    content += `<text x="${iconX}" y="${H6 * 0.42}"
+    // Icon
+    content += `<text x="${iconX}" y="${H6 * 0.45}"
       font-family="Arial, sans-serif"
       font-size="${Math.floor(H6 * 0.13)}"
       fill="${footerAccent}" opacity="0.9">${esc(col.icon || '★')}</text>`;
 
-    // Text lines
-    let textY = H6 * 0.25;
+    let textY = H6 * 0.18;
+
+    // Regular lines
     (col.lines || []).forEach(line => {
-      content += `<text x="${textX}" y="${textY}"
-        font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700"
-        fill="rgba(255,255,255,0.88)">${esc(line).toUpperCase()}</text>`;
-      textY += lineGap;
+      wrapText(line, maxChars).forEach(wl => {
+        content += `<text x="${textX}" y="${textY}"
+          font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="700"
+          fill="rgba(255,255,255,0.88)">${esc(wl).toUpperCase()}</text>`;
+        textY += lineGap;
+      });
     });
 
-    // Highlight line
+    // Highlight
     if (col.highlight) {
-      content += `<text x="${textX}" y="${textY + 3}"
-        font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="900"
-        fill="${footerAccent}">${esc(col.highlight).toUpperCase()}</text>`;
+      wrapText(col.highlight, maxChars).forEach(wl => {
+        content += `<text x="${textX}" y="${textY}"
+          font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="900"
+          fill="${footerAccent}">${esc(wl).toUpperCase()}</text>`;
+        textY += lineGap;
+      });
     }
 
-    // Column divider
     if (i < 3) {
-      content += `<line x1="${(i+1)*colW}" y1="${H6*0.1}" x2="${(i+1)*colW}" y2="${H6*0.9}"
-        stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`;
+      content += `<line x1="${(i+1)*colW}" y1="${H6*0.08}" x2="${(i+1)*colW}" y2="${H6*0.92}"
+        stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
     }
   }
 

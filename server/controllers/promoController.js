@@ -488,6 +488,17 @@ Business: ${businessName} | Sector: ${sector || 'General'} | Website: ${website 
 
 CRITICAL: For all 'icon' fields in valuesRow, featuresBar, and footerColumns, do NOT use standard colored emojis (like 🎁, 🛡️, ✉, 🌐, 🛍️). Instead, ALWAYS use one of the following safe cross-platform unicode geometric/shape symbols: '★', '♥', '◆', '●', '✿', '✦', '❖', '▲', '■'.
 
+STRICT LENGTH LIMITS — required for the poster layout to render correctly:
+- headline: max 20 characters (e.g. "Happy Holi!" = 11 chars)
+- subheading: max 30 characters
+- closingSlogan: max 40 characters
+- rightBoxQuote: max 120 characters total
+- valuesRow[].label: ONE word only, max 12 characters
+- valuesRow[].sublabel: max 22 characters (3-4 short words)
+- featuresBar[].text: max 30 characters
+- footerColumns[].lines[]: each line max 22 characters
+- footerColumns[].highlight: max 25 characters
+
 Return ONLY this JSON structure (no extra keys):
 {
   "heroContent": {
