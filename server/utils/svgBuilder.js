@@ -30,19 +30,11 @@ function wrapText(text, maxChars) {
 /**
  * Auto-fit: find the largest fontSize where all lines fit within availableHeight
  * and no single line exceeds availableWidth.
- *
- * @param {string} text - Raw text to wrap and fit
- * @param {number} availableW - Pixel width available for text
- * @param {number} availableH - Pixel height available for all lines combined
- * @param {number} maxFontSize - Start here and reduce
- * @param {number} minFontSize - Never go below this
- * @param {number} lineHeightMult - lineGap = fontSize * lineHeightMult
- * @returns {{ fontSize: number, lines: string[], lineGap: number }}
  */
 function autoFitText(text, availableW, availableH, maxFontSize, minFontSize = 8, lineHeightMult = 1.45) {
   let fontSize = maxFontSize;
   while (fontSize >= minFontSize) {
-    const charWidth    = fontSize * 0.58;           // Arial average char width
+    const charWidth    = fontSize * 0.58;
     const maxChars     = Math.floor(availableW / charWidth);
     const wrappedLines = wrapText(text, maxChars);
     const lineGap      = fontSize * lineHeightMult;
@@ -52,7 +44,6 @@ function autoFitText(text, availableW, availableH, maxFontSize, minFontSize = 8,
     }
     fontSize -= 1;
   }
-  // Minimum fallback
   const charWidth = minFontSize * 0.58;
   const maxChars  = Math.floor(availableW / charWidth);
   return {
@@ -160,15 +151,17 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
   });
   y += headlineLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.025);
 
-  // Ornamental divider — diamond center with lines on each side
-  const dMid = leftX + 55;
+  // Ornamental divider — centered in the left panel (not anchored to leftX)
+  // Use the full available width of the panel to center it properly
+  const dividerCenterX = Math.floor(panelW * 0.40); // center of left panel
+  const dividerHalfWidth = Math.floor(panelW * 0.28); // arm extends 28% of panel each side
   content += `
-    <line x1="${dMid - 55}" y1="${y}" x2="${dMid - 8}" y2="${y}"
-      stroke="${subheadingColor}" stroke-width="1.2" opacity="0.65"/>
-    <polygon points="${dMid},${y-5} ${dMid+7},${y} ${dMid},${y+5} ${dMid-7},${y}"
-      fill="${subheadingColor}" opacity="0.75"/>
-    <line x1="${dMid + 8}" y1="${y}" x2="${dMid + 55}" y2="${y}"
-      stroke="${subheadingColor}" stroke-width="1.2" opacity="0.65"/>`;
+    <line x1="${dividerCenterX - dividerHalfWidth}" y1="${y}" x2="${dividerCenterX - 9}" y2="${y}"
+      stroke="${subheadingColor}" stroke-width="1.5" opacity="0.7"/>
+    <polygon points="${dividerCenterX},${y-6} ${dividerCenterX+8},${y} ${dividerCenterX},${y+6} ${dividerCenterX-8},${y}"
+      fill="${subheadingColor}" opacity="0.85"/>
+    <line x1="${dividerCenterX + 9}" y1="${y}" x2="${dividerCenterX + dividerHalfWidth}" y2="${y}"
+      stroke="${subheadingColor}" stroke-width="1.5" opacity="0.7"/>`;
   y += Math.floor(panelH * 0.055);
 
   // Subheading
@@ -232,53 +225,75 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
 
 /**
  * ZONE 2R — DECORATIVE QUOTE BOX (Overlaid on Recraft background on right half)
+ * FIX: Icon is now rendered ABOVE the box border (not overlapping text area),
+ * and box background tint now matches the festival palette for a premium look.
  */
 exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = '') => {
   const text = quote || '';
 
-  const paddingX   = 18;
-  const iconSpace  = 44;   // top area reserved for icon
-  const paddingBot = 14;
+  const primaryAccent   = palette.iconCircleColor    || '#FFD700';
+  const secondaryAccent = palette.featureBorderColor || '#FF6347';
+  const useDarkPanel    = palette.useDarkPanel !== false; // default true
+
+  // Box background: semi-transparent, tinted with the panel color for visual cohesion
+  // Use a warm white or very light tint from the panel bg if light mode, else white
+  const boxBgColor = useDarkPanel
+    ? 'rgba(255,255,255,0.90)'          // On dark hero: bright white box contrasts well
+    : `rgba(255,255,255,0.88)`;         // On light background: same
+
+  // Text in box: always dark for legibility (box is white/light)
+  const textColor = '#1A1A1A';
+
+  // Icon circle is positioned 16px above the top of the box border
+  // so it "floats" above the box — no overlap with text
+  const iconR       = 16;
+  const iconCy      = iconR + 4;           // icon center Y from svg top (icon floats above box)
+  const boxStartY   = iconR + 4;           // box rect starts where icon sits
+  const iconSpace   = iconR * 2 + 16;      // vertical space consumed by icon + gap
+  const paddingX    = 18;
+  const paddingBot  = 14;
+
+  // SVG is taller to accommodate floating icon
+  const svgH = boxH + iconR + 4;
   const availableW = boxW - paddingX * 2;
-  const availableH = boxH - iconSpace - paddingBot;
+  const availableH = svgH - iconSpace - boxStartY - paddingBot;
 
   const { fontSize, lines, lineGap } = autoFitText(
     text,
     availableW,
     availableH,
-    Math.floor(boxH * 0.085),  // maxFontSize scales with box height
+    Math.floor(boxH * 0.085),
     9,
     1.5
   );
 
   const midX = boxW / 2;
-  const primaryAccent  = palette.iconCircleColor    || '#FFD700';
-  const secondaryAccent = palette.featureBorderColor || '#FF6347';
-  let currentY = iconSpace;
+  let currentY = iconSpace + boxStartY + 4;
   let textElements = '';
 
-  // Icon — SVG path/unicode shape, not emoji (reliable on all servers)
+  // Floating icon — star inside a circle, sitting above the box
   textElements += `
-    <circle cx="${midX}" cy="22" r="11"
-      stroke="${primaryAccent}" stroke-width="1.5"
-      fill="${primaryAccent}" fill-opacity="0.1"/>
-    <text x="${midX}" y="27" text-anchor="middle"
-      font-family="Arial, sans-serif" font-size="12"
-      fill="${primaryAccent}">★</text>`;
+    <circle cx="${midX}" cy="${iconCy}" r="${iconR}"
+      stroke="${primaryAccent}" stroke-width="2"
+      fill="${primaryAccent}" fill-opacity="0.15"/>
+    <text x="${midX}" y="${iconCy + 5}" text-anchor="middle"
+      font-family="Arial, sans-serif" font-size="14"
+      fill="${primaryAccent}" font-weight="bold">★</text>`;
 
   lines.forEach(line => {
     textElements += `
     <text x="${midX}" y="${currentY}"
       text-anchor="middle" font-family="Arial, sans-serif"
       font-size="${fontSize}" font-style="italic" font-weight="600"
-      fill="#333333">${esc(line)}</text>`;
+      fill="${textColor}">${esc(line)}</text>`;
     currentY += lineGap;
   });
 
-  return Buffer.from(`<svg width="${boxW}" height="${boxH}" xmlns="http://www.w3.org/2000/svg">
-    <rect x="4" y="4" width="${boxW-8}" height="${boxH-8}" rx="10"
-      fill="rgba(255,255,255,0.88)" stroke="${primaryAccent}" stroke-width="2"/>
-    <rect x="9" y="9" width="${boxW-18}" height="${boxH-18}" rx="7"
+  return Buffer.from(`<svg width="${boxW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg">
+    <!-- Floating icon is ABOVE the box rect, no overlap -->
+    <rect x="4" y="${boxStartY}" width="${boxW-8}" height="${svgH - boxStartY - 4}" rx="10"
+      fill="${boxBgColor}" stroke="${primaryAccent}" stroke-width="2"/>
+    <rect x="9" y="${boxStartY + 5}" width="${boxW-18}" height="${svgH - boxStartY - 14}" rx="7"
       fill="none" stroke="${secondaryAccent}" stroke-width="1" stroke-dasharray="4,3"/>
     ${textElements}
   </svg>`);
@@ -286,16 +301,21 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
 
 /**
  * ZONE 3 — VALUES/RITUAL ROW (3 columns with circle icon, title, subtitle)
+ * FIX: All text colors now use the festival palette.
  */
 exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
-  const zoneBgTint      = palette.zoneBgTint      || '#FAFAFA';
-  const iconCircleColor = palette.iconCircleColor  || '#888888';
+  const zoneBgTint      = palette.zoneBgTint       || '#FFF8F0';
+  const iconCircleColor = palette.iconCircleColor   || '#E07000';
+  const labelColor      = palette.headlineColor     || '#1A1A1A';  // use festival headline color for labels
+  const sublabelColor   = palette.bodyTextColor !== '#FFFFFF' ? (palette.bodyTextColor || '#555555') : '#555555';
+  const dividerColor    = palette.featureBorderColor ? palette.featureBorderColor + '55' : '#DDDDDD';
+
   const colW = W / 3;
   const circleR = Math.floor(H3 * 0.24);
   const iconSize = Math.floor(circleR * 1.1);
 
-  const labelSize    = Math.max(Math.floor(W * 0.013), 11);  // ~13px at 1024px wide
-  const sublabelSize = Math.max(Math.floor(W * 0.009), 8);   // ~9px at 1024px wide
+  const labelSize    = Math.max(Math.floor(W * 0.013), 11);
+  const sublabelSize = Math.max(Math.floor(W * 0.009), 8);
 
   let content = '';
   for (let i = 0; i < 3; i++) {
@@ -305,7 +325,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     // Circle with subtle filled tint + solid border
     content += `<circle cx="${cx}" cy="${H3 * 0.36}" r="${circleR}"
       stroke="${iconCircleColor}" stroke-width="2"
-      fill="${iconCircleColor}" fill-opacity="0.10"/>`;
+      fill="${iconCircleColor}" fill-opacity="0.12"/>`;
     // Icon
     content += `<text x="${cx}" y="${H3 * 0.36 + iconSize * 0.38}"
       text-anchor="middle" font-size="${iconSize}"
@@ -319,7 +339,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
       content += `<text x="${cx}" y="${H3 * 0.68 + idx * labelSize * 1.25}"
         text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${labelSize}" font-weight="800"
-        fill="#1A1A1A" letter-spacing="1">${esc(line).toUpperCase()}</text>`;
+        fill="${labelColor}" letter-spacing="1">${esc(line).toUpperCase()}</text>`;
     });
 
     // Sublabel — wrapped to column width
@@ -329,36 +349,39 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     subLines.forEach((line, idx) => {
       content += `<text x="${cx}" y="${H3 * 0.81 + idx * sublabelSize * 1.3}"
         text-anchor="middle" font-family="Arial, sans-serif"
-        font-size="${sublabelSize}" fill="#666666">${esc(line)}</text>`;
+        font-size="${sublabelSize}" fill="${sublabelColor}">${esc(line)}</text>`;
     });
 
     // Divider
     if (i < 2) {
       content += `<line x1="${(i+1)*colW}" y1="${H3*0.12}" x2="${(i+1)*colW}" y2="${H3*0.88}"
-        stroke="#DDDDDD" stroke-width="1"/>`;
+        stroke="${dividerColor}" stroke-width="1"/>`;
     }
   }
 
   return Buffer.from(`<svg width="${W}" height="${H3}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H3}" fill="${zoneBgTint}"/>
-    <line x1="0" y1="0" x2="${W}" y2="0" stroke="#E0E0E0" stroke-width="1.5"/>
-    <line x1="0" y1="${H3}" x2="${W}" y2="${H3}" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${dividerColor}" stroke-width="2"/>
+    <line x1="0" y1="${H3}" x2="${W}" y2="${H3}" stroke="${dividerColor}" stroke-width="2"/>
     ${content}
   </svg>`);
 };
 
 /**
  * ZONE 4 — MARKETING FEATURES BAR (4-column horizontal features row)
+ * FIX: Badge text uses palette colors; icon and text colors are festival-themed.
  */
 exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
-  const zoneBgTint         = palette.zoneBgTint        || '#FAFAFA';
-  const featureBorderColor = palette.featureBorderColor || '#AAAAAA';
+  const zoneBgTint         = palette.zoneBgTint        || '#FFF8F0';
+  const featureBorderColor = palette.featureBorderColor || '#E07000';
+  const featureTextColor   = palette.headlineColor !== palette.panelBg
+    ? (palette.headlineColor || '#1A1A1A')
+    : '#1A1A1A';  // never invisible text
   const colW = W / 4;
   const padX = Math.floor(colW * 0.08);
   const padY = Math.floor(H4 * 0.12);
 
-  // Text area inside badge, below icon
-  const iconBottomY  = Math.floor(H4 * 0.50);  // icon sits at ~42%, bottom at ~50%
+  const iconBottomY  = Math.floor(H4 * 0.50);
   const badgeBottomY = H4 - padY;
   const textAreaH    = badgeBottomY - iconBottomY - 4;
   const badgeInnerW  = colW - padX * 2 - 10;
@@ -368,7 +391,6 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
     const item = features[i] || { icon: '★', text: 'FEATURE' };
     const cx   = i * colW + colW / 2;
 
-    // Auto-fit text into badge text area
     const { fontSize, lines, lineGap } = autoFitText(
       item.text || '',
       badgeInnerW,
@@ -378,11 +400,11 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
       1.35
     );
 
-    // Badge border
+    // Badge border — now uses a fill tint too
     content += `<rect x="${i * colW + padX}" y="${padY}"
       width="${colW - padX * 2}" height="${H4 - padY * 2}"
-      rx="7" fill="none"
-      stroke="${featureBorderColor}" stroke-width="1.3" opacity="0.55"/>`;
+      rx="7" fill="${featureBorderColor}" fill-opacity="0.07"
+      stroke="${featureBorderColor}" stroke-width="1.5" opacity="0.70"/>`;
 
     // Icon
     content += `<text x="${cx}" y="${H4 * 0.42}"
@@ -394,27 +416,31 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
       content += `<text x="${cx}" y="${iconBottomY + (idx + 1) * lineGap}"
         text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${fontSize}" font-weight="700"
-        fill="#333333">${esc(line).toUpperCase()}</text>`;
+        fill="${featureTextColor}">${esc(line).toUpperCase()}</text>`;
     });
 
     if (i < 3) {
       content += `<line x1="${(i+1)*colW}" y1="${H4*0.15}" x2="${(i+1)*colW}" y2="${H4*0.85}"
-        stroke="#E0E0E0" stroke-width="1"/>`;
+        stroke="${featureBorderColor}" stroke-width="1" opacity="0.25"/>`;
     }
   }
 
   return Buffer.from(`<svg width="${W}" height="${H4}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H4}" fill="${zoneBgTint}"/>
     ${content}
-    <line x1="0" y1="${H4}" x2="${W}" y2="${H4}" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="0" y1="${H4}" x2="${W}" y2="${H4}" stroke="${featureBorderColor}" stroke-width="1" opacity="0.3"/>
   </svg>`);
 };
 
 /**
  * ZONE 5 — PRODUCT CATEGORY ICONS (Up to 7 products with icon and name)
+ * FIX: Icon and name text now use festival palette colors.
  */
 exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
-  const bg = palette.zoneBgTint || '#FFFFFF';
+  const bg         = palette.zoneBgTint        || '#FFF8F0';
+  const iconColor  = palette.iconCircleColor   || '#E07000';
+  const nameColor  = palette.featureBorderColor ? palette.featureBorderColor : (palette.headlineColor || '#333333');
+  const divColor   = palette.featureBorderColor ? palette.featureBorderColor + '44' : '#E5E7EB';
   const N = Math.max(products.length, 1);
   const colW = W / N;
 
@@ -425,21 +451,21 @@ exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
     if (!item) continue;
     const x = i * colW + colW / 2;
 
-    const icon = esc(item.icon || '🎒');
+    const icon = esc(item.icon || '★');
     const name = esc(item.name || '');
 
-    // Icon
-    content += `<text x="${x}" y="${H5 * 0.44}" text-anchor="middle" font-size="20">${icon}</text>`;
+    // Icon — colored with palette accent
+    content += `<text x="${x}" y="${H5 * 0.50}" text-anchor="middle" font-size="20" font-family="Arial, sans-serif" fill="${iconColor}">${icon}</text>`;
     
-    // Name
-    content += `<text x="${x}" y="${H5 * 0.78}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#333333">
+    // Name — colored with palette
+    content += `<text x="${x}" y="${H5 * 0.82}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="${nameColor}">
       ${name.toUpperCase()}
     </text>`;
 
     // Vertical Divider
     if (i < N - 1) {
       const divX = (i + 1) * colW;
-      content += `<line x1="${divX}" y1="12" x2="${divX}" y2="${H5 - 12}" stroke="#E5E7EB" stroke-width="1" />`;
+      content += `<line x1="${divX}" y1="10" x2="${divX}" y2="${H5 - 10}" stroke="${divColor}" stroke-width="1" />`;
     }
   }
 
@@ -447,7 +473,7 @@ exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
     <rect width="${W}" height="${H5}" fill="${bg}" />
     ${content}
     <!-- Bottom separator -->
-    <line x1="0" y1="${H5}" x2="${W}" y2="${H5}" stroke="#E5E7EB" stroke-width="1" />
+    <line x1="0" y1="${H5 - 1}" x2="${W}" y2="${H5 - 1}" stroke="${divColor}" stroke-width="1" />
   </svg>`;
 
   return Buffer.from(svg);

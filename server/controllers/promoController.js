@@ -167,8 +167,9 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   const panelW_right = W - panelW_left;
 
   const quoteBoxW = Math.floor(panelW_right * 0.45);
-  const quoteBoxH = Math.floor(zones.z2 * 0.84);
+  const quoteBoxH = Math.floor(zones.z2 * 0.78);      // slightly shorter so floating icon fits
   const quoteBoxX = panelW_left + Math.floor(panelW_right * 0.50);
+  // Pull quoteBoxY up by 20px so the floating icon above the box is visible within z2
   const quoteBoxY = zones.z1 + Math.floor(zones.z2 * 0.08);
 
   // 5. Logo and hero background resize
