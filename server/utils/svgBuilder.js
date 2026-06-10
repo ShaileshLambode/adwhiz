@@ -30,7 +30,7 @@ function wrapText(text, maxChars) {
 /**
  * ZONE 1 — HEADER BAR (Logo left, Tagline center, Contact right)
  */
-exports.buildZone1Header = (data, W, H1, colors = []) => {
+exports.buildZone1Header = (data, W, H1, palette = {}) => {
   const website = esc(data.website || 'www.aimaven.tech');
   const email = esc(data.email || 'aimaven.surat@gmail.com');
   const tagline = esc(data.tagline || 'DESIGN · CONNECT · INSPIRE');
@@ -82,91 +82,113 @@ exports.buildZone1Header = (data, W, H1, colors = []) => {
 /**
  * ZONE 2 — HERO LEFT (Festival Headline, Subheading, Body Message, Closing Slogan)
  */
-exports.buildZone2Left = (data, panelW, panelH, colors = [], occasion = '') => {
-  const headline = esc(data.headline || '');
-  const subheading = esc(data.subheading || '');
-  const bodyMessage = data.bodyMessage || '';
+exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
+  const headline      = esc(data.headline || '');
+  const subheading    = esc(data.subheading || '');
+  const bodyMessage   = data.bodyMessage || '';
   const closingSlogan = esc(data.closingSlogan || '');
 
-  // Theme colors
-  const primaryAccent = colors[0] || '#FFD700'; // Gold/Yellow
-  const secondaryAccent = colors[2] || '#FF6347'; // Tomato Red/Coral
-  const textWhite = '#FFFFFF';
+  const panelBg         = palette.panelBg         || '#1A1A2E';
+  const headlineColor   = palette.headlineColor    || '#FFD700';
+  const subheadingColor = palette.subheadingColor  || '#FFA500';
+  const bodyTextColor   = palette.bodyTextColor    || '#FFFFFF';
+  const sloganColor     = palette.sloganColor      || headlineColor;
 
-  // Determine Background Fill based on occasion
-  let bgFill = 'rgba(22, 11, 33, 0.76)'; // Default semi-transparent dark purple
-  if (occasion === 'bhai_dooj') {
-    bgFill = '#FAF6F0'; // Solid warm cream
-  } else if (occasion === 'generic_sale') {
-    bgFill = 'rgba(33, 33, 33, 0.85)'; // Solid dark gray
+  // VISUAL HIERARCHY: headline is massive, subheading medium, body small
+  const headlineSize    = Math.floor(panelH * 0.115); // ~47px — dominant
+  const subheadingSize  = Math.floor(panelH * 0.048); // ~20px — clearly smaller
+  const sloganSize      = Math.floor(panelH * 0.046); // ~19px — slightly larger than body
+
+  // Wrap at 36 characters to prevent excessive lines
+  const bodyLines = wrapText(bodyMessage, 36);
+
+  // Auto-scale body text size based on number of lines to prevent vertical overlap
+  let bodySize = Math.floor(panelH * 0.038); // ~16px
+  if (bodyLines.length > 5) {
+    bodySize = Math.floor(panelH * 0.034); // ~14px
+  }
+  if (bodyLines.length > 7) {
+    bodySize = Math.floor(panelH * 0.030); // ~12px
   }
 
-  // Determine main text color
-  const isLightBg = (occasion === 'bhai_dooj');
-  const mainTextColor = isLightBg ? '#332211' : textWhite;
-  const subtextColor = isLightBg ? '#554433' : 'rgba(255,255,255,0.9)';
+  let content = '';
+  let y = Math.floor(panelH * 0.10) + headlineSize;
 
-  // Wrap body message into lines
-  const bodyLines = wrapText(bodyMessage, 32);
+  // Headline — wrap at 15 characters to keep standard greetings on a single line
+  const headlineLines = wrapText(headline, 15);
+  headlineLines.forEach((line, i) => {
+    content += `<text x="${panelW / 2}" y="${y + i * (headlineSize * 1.05)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${headlineSize}" font-weight="900"
+      fill="${headlineColor}" letter-spacing="1">${line.toUpperCase()}</text>`;
+  });
+  y += headlineLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.025);
 
-  // Layout calculations
-  const padTop = Math.floor(panelH * 0.10);
-  const headlineSize = Math.floor(panelH * 0.11);
-  const subheadingSize = Math.floor(panelH * 0.052);
-  const bodySize = Math.floor(panelH * 0.046);
-  const sloganSize = Math.floor(panelH * 0.055);
-
-  let textElements = '';
-  let currentY = padTop + headlineSize;
-
-  // Headline
-  textElements += `<text x="${panelW / 2}" y="${currentY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${headlineSize}" font-weight="900" fill="${primaryAccent}" letter-spacing="1">
-    ${headline.toUpperCase()}
-  </text>`;
-  currentY += Math.floor(panelH * 0.04);
-
-  // Decorative Divider
-  const ornament = isLightBg ? '❖' : '✦ ❖ ✦';
-  textElements += `<text x="${panelW / 2}" y="${currentY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="${secondaryAccent}">
-    ${ornament}
-  </text>`;
-  currentY += Math.floor(panelH * 0.07);
+  // Ornamental divider — diamond center with lines on each side
+  const dMid = panelW / 2;
+  content += `
+    <line x1="${dMid - 55}" y1="${y}" x2="${dMid - 8}" y2="${y}"
+      stroke="${subheadingColor}" stroke-width="1.2" opacity="0.65"/>
+    <polygon points="${dMid},${y-5} ${dMid+7},${y} ${dMid},${y+5} ${dMid-7},${y}"
+      fill="${subheadingColor}" opacity="0.75"/>
+    <line x1="${dMid + 8}" y1="${y}" x2="${dMid + 55}" y2="${y}"
+      stroke="${subheadingColor}" stroke-width="1.2" opacity="0.65"/>`;
+  y += Math.floor(panelH * 0.055);
 
   // Subheading
   if (subheading) {
-    textElements += `<text x="${panelW / 2}" y="${currentY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${subheadingSize}" font-weight="bold" fill="${secondaryAccent}" letter-spacing="1.5">
-      ${subheading.toUpperCase()}
-    </text>`;
-    currentY += Math.floor(panelH * 0.09);
+    content += `<text x="${panelW / 2}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${subheadingSize}" font-weight="700"
+      fill="${subheadingColor}" letter-spacing="2">${subheading.toUpperCase()}</text>`;
+    y += Math.floor(panelH * 0.075);
   }
 
-  // Body Lines
-  const lineGap = Math.floor(bodySize * 1.5);
+  // Body copy
+  const lineGap = Math.floor(bodySize * 1.45);
   bodyLines.forEach(line => {
-    textElements += `<text x="${panelW / 2}" y="${currentY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${bodySize}" fill="${subtextColor}">
-      ${esc(line)}
-    </text>`;
-    currentY += lineGap;
+    content += `<text x="${panelW / 2}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${bodySize}" fill="${bodyTextColor}" opacity="0.92">${esc(line)}</text>`;
+    y += lineGap;
   });
 
-  // Closing Slogan (near bottom)
+  // Closing slogan — pinned near bottom, pushed down if body copy runs very long, but capped to avoid screen cutoff
   if (closingSlogan) {
-    const sloganLines = wrapText(closingSlogan, 28);
-    const numSloganLines = sloganLines.length;
-    const sloganLineGap = Math.floor(sloganSize * 1.3);
-    let startSloganY = Math.floor(panelH * 0.84) - Math.floor((numSloganLines - 1) * sloganLineGap / 2);
-    sloganLines.forEach((line) => {
-      textElements += `<text x="${panelW / 2}" y="${startSloganY}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${sloganSize}" font-style="italic" font-weight="bold" fill="${primaryAccent}">
-        ${esc(line)}
-      </text>`;
-      startSloganY += sloganLineGap;
+    const sloganLines = wrapText(closingSlogan, 26);
+    const sloganLineGap = Math.floor(sloganSize * 1.35);
+    
+    let sy = Math.floor(panelH * 0.83);
+    const minSloganY = y + Math.floor(panelH * 0.03);
+    if (sy < minSloganY) {
+      sy = minSloganY;
+    }
+    
+    const maxSloganY = panelH - Math.floor(sloganSize * 1.1) - (sloganLines.length - 1) * sloganLineGap;
+    if (sy > maxSloganY) {
+      sy = maxSloganY;
+    }
+
+    sloganLines.forEach(line => {
+      content += `<text x="${panelW / 2}" y="${sy}"
+        text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="${sloganSize}" font-style="italic" font-weight="700"
+        fill="${sloganColor}">${esc(line)}</text>`;
+      sy += sloganLineGap;
     });
   }
 
+  // Gradient fade on RIGHT edge — makes the panel blend into the Recraft hero image
   const svg = `<svg width="${panelW}" height="${panelH}" xmlns="http://www.w3.org/2000/svg">
-    <!-- Panel Background -->
-    <rect width="${panelW}" height="${panelH}" fill="${bgFill}" />
-    ${textElements}
+    <defs>
+      <linearGradient id="panelFade" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="${panelBg}" stop-opacity="1"/>
+        <stop offset="78%"  stop-color="${panelBg}" stop-opacity="1"/>
+        <stop offset="100%" stop-color="${panelBg}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect width="${panelW}" height="${panelH}" fill="url(#panelFade)"/>
+    ${content}
   </svg>`;
 
   return Buffer.from(svg);
@@ -175,10 +197,10 @@ exports.buildZone2Left = (data, panelW, panelH, colors = [], occasion = '') => {
 /**
  * ZONE 2R — DECORATIVE QUOTE BOX (Overlaid on Recraft background on right half)
  */
-exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, colors = [], occasion = '') => {
+exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = '') => {
   const text = esc(quote || '');
-  const primaryAccent = colors[0] || '#FFD700'; // Gold/Yellow
-  const secondaryAccent = colors[2] || '#FF6347'; // Tomato/Red
+  const primaryAccent = palette.iconCircleColor || '#FFD700'; 
+  const secondaryAccent = palette.featureBorderColor || '#FF6347';
 
   // Determine background and borders
   const boxBg = 'rgba(255, 255, 255, 0.88)';
@@ -224,105 +246,101 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, colors = [], occasion = '
 /**
  * ZONE 3 — VALUES/RITUAL ROW (3 columns with circle icon, title, subtitle)
  */
-exports.buildZone3ValuesRow = (values = [], W, H3, colors = []) => {
-  const primaryAccent = colors[0] || '#FFD700';
-  const secondaryAccent = colors[2] || '#FF6347';
-  const bg = '#FFFFFF';
+exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
+  const zoneBgTint      = palette.zoneBgTint      || '#FAFAFA';
+  const iconCircleColor = palette.iconCircleColor  || '#888888';
   const colW = W / 3;
+  const circleR = Math.floor(H3 * 0.24);
+  const iconSize = Math.floor(circleR * 1.1);
 
   let content = '';
-
   for (let i = 0; i < 3; i++) {
-    const item = values[i] || { icon: '✨', label: 'VALUE', sublabel: 'desc' };
-    const x = i * colW + colW / 2;
+    const item = values[i] || { icon: '★', label: 'VALUE', sublabel: '' };
+    const cx = i * colW + colW / 2;
 
-    const icon = esc(item.icon || '✨');
-    const label = esc(item.label || '');
-    const sublabel = esc(item.sublabel || '');
-
-    // Circle border
-    content += `<circle cx="${x}" cy="${H3 * 0.35}" r="22" stroke="${primaryAccent}" fill="none" stroke-width="1.8" />`;
+    // Circle with subtle filled tint + solid border
+    content += `<circle cx="${cx}" cy="${H3 * 0.36}" r="${circleR}"
+      stroke="${iconCircleColor}" stroke-width="2"
+      fill="${iconCircleColor}" fill-opacity="0.10"/>`;
     // Icon
-    content += `<text x="${x}" y="${H3 * 0.35 + 6}" text-anchor="middle" font-size="17">${icon}</text>`;
+    content += `<text x="${cx}" y="${H3 * 0.36 + iconSize * 0.38}"
+      text-anchor="middle" font-size="${iconSize}"
+      font-family="Arial, sans-serif" fill="${iconCircleColor}">${esc(item.icon || '★')}</text>`;
     // Label
-    content += `<text x="${x}" y="${H3 * 0.68}" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#222222" letter-spacing="1">
-      ${label.toUpperCase()}
-    </text>`;
+    content += `<text x="${cx}" y="${H3 * 0.70}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${Math.floor(H3 * 0.12)}" font-weight="800"
+      fill="#1A1A1A" letter-spacing="1">${esc(item.label || '').toUpperCase()}</text>`;
     // Sublabel
-    content += `<text x="${x}" y="${H3 * 0.85}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10.5" fill="#666666">
-      ${sublabel}
-    </text>`;
-
-    // Vertical Divider
+    content += `<text x="${cx}" y="${H3 * 0.87}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${Math.floor(H3 * 0.085)}" fill="#777777">${esc(item.sublabel || '')}</text>`;
+    // Divider
     if (i < 2) {
-      const divX = (i + 1) * colW;
-      content += `<line x1="${divX}" y1="12" x2="${divX}" y2="${H3 - 12}" stroke="#E5E7EB" stroke-width="1" />`;
+      content += `<line x1="${(i+1)*colW}" y1="${H3*0.12}" x2="${(i+1)*colW}" y2="${H3*0.88}"
+        stroke="#DDDDDD" stroke-width="1"/>`;
     }
   }
 
-  const svg = `<svg width="${W}" height="${H3}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H3}" fill="${bg}" />
-    <!-- Top separator -->
-    <line x1="0" y1="0" x2="${W}" y2="0" stroke="#E5E7EB" stroke-width="1" />
+  return Buffer.from(`<svg width="${W}" height="${H3}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H3}" fill="${zoneBgTint}"/>
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="0" y1="${H3}" x2="${W}" y2="${H3}" stroke="#E0E0E0" stroke-width="1.5"/>
     ${content}
-    <!-- Bottom separator -->
-    <line x1="0" y1="${H3}" x2="${W}" y2="${H3}" stroke="#E5E7EB" stroke-width="1" />
-  </svg>`;
-
-  return Buffer.from(svg);
+  </svg>`);
 };
 
 /**
  * ZONE 4 — MARKETING FEATURES BAR (4-column horizontal features row)
  */
-exports.buildZone4FeaturesBar = (features = [], W, H4, colors = []) => {
-  const bg = '#FDFDFD';
-  const borderColor = colors[2] || '#FF6347';
-  const textDark = '#333333';
+exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
+  const zoneBgTint         = palette.zoneBgTint         || '#FAFAFA';
+  const featureBorderColor = palette.featureBorderColor  || '#AAAAAA';
   const colW = W / 4;
+  const padX = Math.floor(colW * 0.08);
+  const padY = Math.floor(H4 * 0.12);
 
   let content = '';
-
   for (let i = 0; i < 4; i++) {
-    const item = features[i] || { icon: '🎁', text: 'FEATURE' };
-    const x = i * colW + colW / 2;
+    const item = features[i] || { icon: '★', text: 'FEATURE' };
+    const cx = i * colW + colW / 2;
 
-    const icon = esc(item.icon);
-    const textLines = wrapText(item.text, 22);
-
-    // Render Icon
-    content += `<text x="${x}" y="${H4 * 0.38}" text-anchor="middle" font-size="15">${icon}</text>`;
-
-    // Render Text Lines
-    let textY = H4 * 0.63;
-    textLines.forEach((line, idx) => {
-      content += `<text x="${x}" y="${textY + idx * 11}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="${textDark}">
-        ${line.toUpperCase()}
-      </text>`;
+    // Rounded pill badge border around the whole column cell
+    content += `<rect x="${i * colW + padX}" y="${padY}"
+      width="${colW - padX * 2}" height="${H4 - padY * 2}"
+      rx="7" fill="none"
+      stroke="${featureBorderColor}" stroke-width="1.3" opacity="0.55"/>`;
+    // Icon
+    content += `<text x="${cx}" y="${H4 * 0.42}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${Math.floor(H4 * 0.22)}" fill="${featureBorderColor}">${esc(item.icon || '★')}</text>`;
+    // Text
+    const lines = wrapText(item.text || '', 20);
+    lines.forEach((line, idx) => {
+      content += `<text x="${cx}" y="${H4 * 0.64 + idx * Math.floor(H4 * 0.13)}"
+        text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="${Math.floor(H4 * 0.095)}" font-weight="700"
+        fill="#333333">${esc(line).toUpperCase()}</text>`;
     });
-
-    // Vertical Divider
+    // Vertical separator
     if (i < 3) {
-      const divX = (i + 1) * colW;
-      content += `<line x1="${divX}" y1="10" x2="${divX}" y2="${H4 - 10}" stroke="#E5E7EB" stroke-width="1" />`;
+      content += `<line x1="${(i+1)*colW}" y1="${H4*0.15}" x2="${(i+1)*colW}" y2="${H4*0.85}"
+        stroke="#E0E0E0" stroke-width="1"/>`;
     }
   }
 
-  const svg = `<svg width="${W}" height="${H4}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H4}" fill="${bg}" />
+  return Buffer.from(`<svg width="${W}" height="${H4}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H4}" fill="${zoneBgTint}"/>
     ${content}
-    <!-- Bottom separator -->
-    <line x1="0" y1="${H4}" x2="${W}" y2="${H4}" stroke="#E5E7EB" stroke-width="1" />
-  </svg>`;
-
-  return Buffer.from(svg);
+    <line x1="0" y1="${H4}" x2="${W}" y2="${H4}" stroke="#E0E0E0" stroke-width="1.5"/>
+  </svg>`);
 };
 
 /**
  * ZONE 5 — PRODUCT CATEGORY ICONS (Up to 7 products with icon and name)
  */
-exports.buildZone5ProductIcons = (products = [], W, H5) => {
-  const bg = '#FFFFFF';
+exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
+  const bg = palette.zoneBgTint || '#FFFFFF';
   const N = Math.max(products.length, 1);
   const colW = W / N;
 
@@ -364,60 +382,50 @@ exports.buildZone5ProductIcons = (products = [], W, H5) => {
 /**
  * ZONE 6 — FOOTER STRIP (4 Columns, dark background, highlight support)
  */
-exports.buildZone6FooterStrip = (footerColumns = [], W, H6, colors = []) => {
-  // Use the secondary dark color or fallback to burgundy/purple
-  const footerBg = colors[1] || colors[4] || '#1a0f26';
-  const primaryAccent = colors[0] || '#FFD700'; // Gold/Yellow highlight
+exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
+  const footerBg     = palette.footerBg        || '#16213E';
+  const footerAccent = palette.footerTextAccent || '#FFD700';
   const colW = W / 4;
 
   let content = '';
-
   for (let i = 0; i < 4; i++) {
-    const col = footerColumns[i] || { icon: '✨', lines: [], highlight: '' };
-    const x = i * colW + colW / 2;
+    const col = footerColumns[i] || { icon: '★', lines: [], highlight: '' };
+    const iconX   = i * colW + 20;
+    const textX   = i * colW + 44;
+    const fontSize = Math.floor(H6 * 0.09);
+    const lineGap  = Math.floor(fontSize * 1.45);
 
-    const icon = esc(col.icon);
-    const highlight = esc(col.highlight);
+    // Column icon
+    content += `<text x="${iconX}" y="${H6 * 0.42}"
+      font-family="Arial, sans-serif"
+      font-size="${Math.floor(H6 * 0.13)}"
+      fill="${footerAccent}" opacity="0.9">${esc(col.icon || '★')}</text>`;
 
-    // Left relative position for column icon
-    const iconX = i * colW + 18;
-    const textStartX = i * colW + 42;
+    // Text lines
+    let textY = H6 * 0.25;
+    (col.lines || []).forEach(line => {
+      content += `<text x="${textX}" y="${textY}"
+        font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700"
+        fill="rgba(255,255,255,0.88)">${esc(line).toUpperCase()}</text>`;
+      textY += lineGap;
+    });
 
-    // Draw Column Icon
-    content += `<text x="${iconX}" y="${H6 * 0.45}" font-size="14">${icon}</text>`;
-
-    // Draw Text lines
-    let textY = H6 * 0.28;
-    const fontSize = Math.floor(H6 * 0.08);
-    const lineSpacing = Math.floor(fontSize * 1.4);
-
-    if (col.lines && Array.isArray(col.lines)) {
-      col.lines.forEach((line) => {
-        content += `<text x="${textStartX}" y="${textY}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.85)">
-          ${esc(line).toUpperCase()}
-        </text>`;
-        textY += lineSpacing;
-      });
+    // Highlight line
+    if (col.highlight) {
+      content += `<text x="${textX}" y="${textY + 3}"
+        font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="900"
+        fill="${footerAccent}">${esc(col.highlight).toUpperCase()}</text>`;
     }
 
-    // Draw Highlight (if exists)
-    if (highlight) {
-      content += `<text x="${textStartX}" y="${textY + 2}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="extrabold" fill="${primaryAccent}">
-        ${highlight.toUpperCase()}
-      </text>`;
-    }
-
-    // Divider
+    // Column divider
     if (i < 3) {
-      const divX = (i + 1) * colW;
-      content += `<line x1="${divX}" y1="12" x2="${divX}" y2="${H6 - 12}" stroke="rgba(255, 255, 255, 0.15)" stroke-width="1" />`;
+      content += `<line x1="${(i+1)*colW}" y1="${H6*0.1}" x2="${(i+1)*colW}" y2="${H6*0.9}"
+        stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`;
     }
   }
 
-  const svg = `<svg width="${W}" height="${H6}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H6}" fill="${footerBg}" />
+  return Buffer.from(`<svg width="${W}" height="${H6}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H6}" fill="${footerBg}"/>
     ${content}
-  </svg>`;
-
-  return Buffer.from(svg);
+  </svg>`);
 };

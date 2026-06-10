@@ -19,6 +19,7 @@ const {
   buildZone6FooterStrip
 } = require("../utils/svgBuilder");
 const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
+const { getDefaultFestivalPalette } = require("../utils/festivalPalettes");
 
 
 // ─── Logo background removal (unchanged — works fine) ────────────────────────
@@ -97,7 +98,7 @@ async function extractLogoColors(logoBuffer) {
 }
 
 // ─── Core generation logic (composite vertical pipeline) ───────────────────
-async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt }) {
+async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette }) {
   // 1. Build Recraft style and payload
   const VALID_STYLES = {
     'realistic_image':                    'digital_illustration',
@@ -117,10 +118,12 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   const logoBuffer = await axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
   const logoColors = await extractLogoColors(logoBuffer);
 
-  // Color priority: logo (most accurate) -> AI suggested -> template palette
-  const colorsToUse = (logoColors && logoColors.length >= 3) ? logoColors
-    : (aiSuggestedColors && aiSuggestedColors.length >= 3) ? aiSuggestedColors
-    : template.colorPalette;
+  // Logo colors → Recraft ONLY (so hero scene is brand-influenced)
+  const recraftColors = (logoColors && logoColors.length >= 2 ? logoColors : template.colorPalette).slice(0, 3);
+
+  // Festival palette → all SVG zone rendering
+  // Priority: GPT-provided > generic fallback
+  const palette = (festivalPalette && festivalPalette.panelBg) ? festivalPalette : getDefaultFestivalPalette();
 
   const recraftPayload = {
     prompt: recraftScenePrompt || buildPrompt(template),
@@ -130,7 +133,7 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
     n: 1,
     response_format: 'url',
     controls: {
-      colors: colorsToUse
+      colors: recraftColors
         .filter(hex => hex && hex.trim())
         .map(hex => hexToRgb(hex))
     }
@@ -189,14 +192,14 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
     })
     .toBuffer();
 
-  // 6. Generate SVG buffers for each zone using colorsToUse
-  const z1Svg = buildZone1Header({ website: logoDoc.website || '', email: logoDoc.email || '' }, W, zones.z1, colorsToUse);
-  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, colorsToUse, template.occasion);
-  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, colorsToUse, template.occasion);
-  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, colorsToUse);
-  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, colorsToUse);
-  const z5Svg = buildZone5ProductIcons(overrides.productCategories, W, zones.z5);
-  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, colorsToUse);
+  // 6. Generate SVG buffers for each zone using festival palette
+  const z1Svg = buildZone1Header({ website: logoDoc.website || '', email: logoDoc.email || '' }, W, zones.z1, palette);
+  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, palette, template.occasion);
+  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, palette, template.occasion);
+  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, palette);
+  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, palette);
+  const z5Svg = buildZone5ProductIcons(overrides.productCategories, W, zones.z5, palette);
+  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, palette);
 
   // 7. Composite in array order
   let currentY = 0;
@@ -266,7 +269,7 @@ exports.listTemplates = async (req, res) => {
 
 exports.generatePromo = async (req, res) => {
   try {
-    const { templateId, logoId, size, stylePreset, aiSuggestedColors, recraftScenePrompt } = req.body;
+    const { templateId, logoId, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette } = req.body;
     const userId = req.user.id;
 
     if (!logoId) {
@@ -306,7 +309,8 @@ exports.generatePromo = async (req, res) => {
       size,
       stylePreset,
       aiSuggestedColors,
-      recraftScenePrompt
+      recraftScenePrompt,
+      festivalPalette
     });
 
     // Upload to Cloudinary
@@ -354,7 +358,8 @@ exports.regeneratePromo = async (req, res) => {
       size = existingPost.size,
       stylePreset,
       aiSuggestedColors,
-      recraftScenePrompt
+      recraftScenePrompt,
+      festivalPalette
     } = req.body;
 
     let template;
@@ -390,7 +395,8 @@ exports.regeneratePromo = async (req, res) => {
       size,
       stylePreset,
       aiSuggestedColors,
-      recraftScenePrompt
+      recraftScenePrompt,
+      festivalPalette
     });
 
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -433,7 +439,49 @@ exports.aiFillContent = async (req, res) => {
       return res.status(400).json({ error: 'businessName and festivalName are required' });
     }
 
-    const systemPrompt = `You are an expert Indian marketing copywriter creating festival poster content for "${businessName}", a ${sector || 'business'} company. Always respond with ONLY valid JSON — no markdown, no explanation, no code fences.`;
+    const systemPrompt = `You are an expert Indian marketing copywriter AND a color-theory expert creating festival poster content for "${businessName}", a ${sector || 'business'} company. Always respond with ONLY valid JSON — no markdown, no explanation, no code fences.
+
+When generating festivalPalette, follow these strict design rules:
+
+RULE 1 — panelBg (left panel background):
+  Choose EITHER:
+  (a) A rich, dark color deeply associated with the festival mood — e.g. deep indigo for Diwali, deep crimson for Bhai Dooj, forest green for Christmas, deep teal for Onam. Set useDarkPanel: true.
+  (b) A very warm light cream/ivory tone (in the #FAF6F0 to #FFFDF5 range) for festivals that feel bright and celebratory — e.g. Holi, Independence Day, Navratri. Set useDarkPanel: false.
+  NEVER use: grey, muted corporate tones, or any color that does not evoke the specific festival.
+
+RULE 2 — headlineColor:
+  If useDarkPanel is true: use a bright glowing color (gold, bright orange, bright yellow) that shines on the dark background. 
+  If useDarkPanel is false: use a deep, fully saturated version of the festival primary color.
+  CRITICAL: Contrast against panelBg must be very high. Never choose a headlineColor similar to panelBg.
+
+RULE 3 — subheadingColor:
+  A secondary accent that complements headlineColor. Use a different hue from the same festival family.
+
+RULE 4 — bodyTextColor:
+  If useDarkPanel is true: use #FFFFFF or a near-white tone.
+  If useDarkPanel is false: use a dark rich tone (#2D2D2D or a dark festival color) with strong contrast.
+
+RULE 5 — sloganColor:
+  Color for the italic closing slogan. Should feel warm and expressive. Usually matches headlineColor or uses a warm accent from the festival palette.
+
+RULE 6 — footerBg:
+  ALWAYS a rich, saturated, deep festival color. This strip anchors the poster and must feel bold.
+  Examples: deep purple, deep crimson, forest green, navy, dark maroon.
+  NEVER white, cream, or light colors. NEVER grey.
+
+RULE 7 — footerTextAccent:
+  Bright warm color for highlighted footer text. Gold #FFD700 or festival bright accent works for most.
+
+RULE 8 — iconCircleColor:
+  The accent color for icon circle borders and fills in the values row. Use the festival main accent.
+
+RULE 9 — featureBorderColor:
+  Border color for the feature badge pill outlines. Can match or complement iconCircleColor.
+
+RULE 10 — zoneBgTint:
+  Background tint for the values row, features bar, and product row zones.
+  ALWAYS a very light warm near-white. Examples: #FFF8F0, #F9F6F2, #F5FFF5, #F0FFF0.
+  NEVER dark. These zones are a visual breathing space between the hero and footer.`;
 
     const userPrompt = `Generate complete festival marketing poster content for "${festivalName}".
 Business: ${businessName} | Sector: ${sector || 'General'} | Website: ${website || ''} | Email: ${email || ''}
@@ -467,7 +515,19 @@ Return ONLY this JSON structure (no extra keys):
     { "icon": "safe unicode symbol", "lines": ["${businessName.toUpperCase()} \\u2014", "TAGLINE LINE", "BRAND LINE"], "highlight": "BRAND CALL TO ACTION." }
   ],
   "recraftScenePrompt": "Detailed Recraft AI scene description for ${festivalName} festival background. Flat 2D digital illustration style. No text, no people, no banners.",
-  "suggestedColors": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"]
+  "festivalPalette": {
+    "panelBg": "hex — left panel background, following RULE 1",
+    "useDarkPanel": true,
+    "headlineColor": "hex — large headline text, following RULE 2",
+    "subheadingColor": "hex — subheading text, following RULE 3",
+    "bodyTextColor": "hex — body copy text, following RULE 4",
+    "sloganColor": "hex — italic closing slogan, following RULE 5",
+    "footerBg": "hex — footer strip background, following RULE 6",
+    "footerTextAccent": "hex — footer highlight text, following RULE 7",
+    "iconCircleColor": "hex — values row icon circles, following RULE 8",
+    "featureBorderColor": "hex — feature badge borders, following RULE 9",
+    "zoneBgTint": "hex — zones 3/4/5 background, following RULE 10"
+  }
 }`;
 
     const completion = await openai.chat.completions.create({
@@ -477,7 +537,7 @@ Return ONLY this JSON structure (no extra keys):
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 1200,
+      max_tokens: 1600,
       response_format: { type: 'json_object' },
     });
 

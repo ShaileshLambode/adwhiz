@@ -41,6 +41,7 @@ const PromoCreator = () => {
   const [isAIFilling, setIsAIFilling] = useState(false);
   const [aiGeneratedColors, setAiGeneratedColors] = useState([]);
   const [aiScenePrompt, setAiScenePrompt] = useState('');
+  const [festivalPalette, setFestivalPalette] = useState(null);
 
   const FESTIVAL_CHIPS = [
     'Diwali', 'Holi', 'Bhai Dooj', 'Eid Mubarak',
@@ -221,6 +222,7 @@ const PromoCreator = () => {
       })));
       setAiGeneratedColors(content.suggestedColors || []);
       setAiScenePrompt(content.recraftScenePrompt || '');
+      setFestivalPalette(content.festivalPalette || null);
 
       toast.success('✨ AI filled all content! Review and edit in Step 2.');
       setCurrentStep(2);
@@ -283,7 +285,8 @@ const PromoCreator = () => {
         })),
         aiSuggestedColors: aiGeneratedColors,
         recraftScenePrompt: aiScenePrompt,
-        occasion: festivalName.trim()
+        occasion: festivalName.trim(),
+        festivalPalette: festivalPalette
       };
 
       const res = await axios.post(`${BACKEND_URL}/api/promo/generate`, payload, {
@@ -786,6 +789,7 @@ const PromoCreator = () => {
                         setFestivalName('');
                         setAiGeneratedColors([]);
                         setAiScenePrompt('');
+                        setFestivalPalette(null);
                         setCurrentStep(1);
                       }}
                       className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all cursor-pointer"
