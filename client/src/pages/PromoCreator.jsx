@@ -177,6 +177,10 @@ const PromoCreator = () => {
     setValuesRow(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
   };
 
+  const handleFeatureChange = (index, field, value) => {
+    setFeaturesBar(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
+  };
+
   const handleProductChange = (index, field, value) => {
     setProductCategories(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
   };
@@ -628,6 +632,35 @@ const PromoCreator = () => {
                   </div>
                 </div>
 
+                {/* Marketing Features Bar */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>⚡</span> Zone 4 — Marketing Features (4 Columns)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {featuresBar.map((feat, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 space-y-2">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Icon"
+                            value={feat.icon} 
+                            onChange={(e) => handleFeatureChange(idx, 'icon', e.target.value)}
+                            className="w-12 border border-gray-300 rounded-md p-1.5 text-center text-sm"
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="Feature Text"
+                            value={feat.text} 
+                            onChange={(e) => handleFeatureChange(idx, 'text', e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-md p-1.5 text-sm font-semibold"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Product Categories */}
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <div className="flex justify-between items-center mb-4">
@@ -855,6 +888,10 @@ const PromoCreator = () => {
                         <div className="text-xs">
                           <span className="text-gray-400 uppercase font-semibold mr-1.5">Values:</span>
                           <span className="text-gray-700 italic">{valuesRow.map(v => `${v.icon} ${v.label}`).join(' | ')}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-400 uppercase font-semibold mr-1.5">Features:</span>
+                          <span className="text-gray-700 italic">{featuresBar.map(f => `${f.icon} ${f.text}`).join(' | ')}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-gray-400 uppercase font-semibold mr-1.5">Products:</span>

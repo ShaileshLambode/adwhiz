@@ -130,10 +130,10 @@ exports.buildZone1Header = (data, W, H1, palette = {}) => {
  * ZONE 2 — HERO LEFT (Festival Headline, Subheading, Body Message, Closing Slogan)
  */
 exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
-  const headline      = esc(data.headline || '');
-  const subheading    = esc(data.subheading || '');
+  const headline      = data.headline || '';
+  const subheading    = data.subheading || '';
   const bodyMessage   = data.bodyMessage || '';
-  const closingSlogan = esc(data.closingSlogan || '');
+  const closingSlogan = data.closingSlogan || '';
 
   const panelBg         = palette.panelBg         || '#1A1A2E';
   const headlineColor   = palette.headlineColor    || '#FFD700';
@@ -174,7 +174,7 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
     content += `<text x="${leftX}" y="${y + i * (headlineSize * 1.05)}"
       text-anchor="start" font-family="Arial, sans-serif"
       font-size="${headlineSize}" font-weight="900"
-      fill="${headlineColor}" letter-spacing="1">${line.toUpperCase()}</text>`;
+      fill="${headlineColor}" letter-spacing="1">${esc(line.toUpperCase())}</text>`;
   });
   y += headlineLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.025);
 
@@ -200,7 +200,7 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
       content += `<text x="${leftX}" y="${y + i * (subheadingSize * 1.15)}"
         text-anchor="start" font-family="Arial, sans-serif"
         font-size="${subheadingSize}" font-weight="700"
-        fill="${subheadingColor}" letter-spacing="2">${line.toUpperCase()}</text>`;
+        fill="${subheadingColor}" letter-spacing="2">${esc(line.toUpperCase())}</text>`;
     });
     y += subheadingLines.length * subheadingSize * 1.15 + Math.floor(panelH * 0.025);
   }
@@ -288,15 +288,11 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   // SVG height accommodates the icon overhang
   const svgH = boxH + boxStartY;
   
-  // Text starts at this exact Y — must be used for BOTH autoFitText and rendering
-  const textStartY     = boxStartY + paddingInner + 4;
-  const boxInnerBottom = svgH - paddingBot - 4;
-  const availableH     = boxInnerBottom - textStartY;
-
   const availableW = boxW - paddingX * 2;
+  const availableH = boxH - 44; // Ensure at least 22px padding at top and bottom
 
-  // Hard cap the text — never allow > 130 chars regardless of GPT output
-  const text = (quote || '').substring(0, 130);
+  // Hard cap the text — never allow > 110 chars regardless of GPT output
+  const text = (quote || '').substring(0, 110);
 
   const { fontSize, lines, lineGap } = autoFitText(
     text,
@@ -308,6 +304,9 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   );
 
   const midX = boxW / 2;
+  const textBlockH = (lines.length - 1) * lineGap + fontSize;
+  // Centered inside the box area with standard baseline adjustment
+  const textStartY = boxStartY + Math.floor(((boxH - 4) - textBlockH) / 2) + Math.floor(fontSize * 0.7);
   let currentY = textStartY;
   let textElements = '';
 
@@ -352,11 +351,11 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
   const dividerColor    = palette.featureBorderColor ? palette.featureBorderColor + '55' : '#DDDDDD';
 
   const colW = W / 3;
-  const circleR = Math.floor(H3 * 0.24);
-  const iconSize = Math.floor(circleR * 0.80);
+  const circleR = Math.floor(H3 * 0.12);
+  const iconSize = Math.max(Math.floor(H3 * 0.135), 13);
 
-  const labelSize    = Math.max(Math.floor(W * 0.013), 11);
-  const sublabelSize = Math.max(Math.floor(W * 0.009), 8);
+  const labelSize    = Math.max(Math.floor(W * 0.015), 15);
+  const sublabelSize = Math.max(Math.floor(W * 0.011), 11);
 
   let content = '';
   for (let i = 0; i < 3; i++) {
@@ -364,11 +363,11 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     const cx = i * colW + colW / 2;
 
     // Circle with subtle filled tint + solid border
-    content += `<circle cx="${cx}" cy="${H3 * 0.36}" r="${circleR}"
+    content += `<circle cx="${cx}" cy="${H3 * 0.30}" r="${circleR}"
       stroke="${iconCircleColor}" stroke-width="2"
       fill="${iconCircleColor}" fill-opacity="0.12"/>`;
     // Icon
-    content += `<text x="${cx}" y="${H3 * 0.36 + iconSize * 0.38}"
+    content += `<text x="${cx}" y="${H3 * 0.30 + iconSize * 0.38}"
       text-anchor="middle" font-size="${iconSize}"
       font-family="Arial, sans-serif" fill="${iconCircleColor}">${esc(item.icon || '★')}</text>`;
 
@@ -377,10 +376,10 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     const labelChars  = Math.floor(labelAvailW / (labelSize * 0.65));
     const labelLines  = wrapText(item.label || '', labelChars);
     labelLines.forEach((line, idx) => {
-      content += `<text x="${cx}" y="${H3 * 0.68 + idx * labelSize * 1.25}"
+      content += `<text x="${cx}" y="${H3 * 0.59 + idx * labelSize * 1.25}"
         text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${labelSize}" font-weight="800"
-        fill="${labelColor}" letter-spacing="1">${esc(line).toUpperCase()}</text>`;
+        fill="${labelColor}" letter-spacing="1">${esc(line.toUpperCase())}</text>`;
     });
 
     // Sublabel — wrapped to column width
@@ -388,7 +387,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
     const subChars  = Math.floor(subAvailW / (sublabelSize * 0.6));
     const subLines  = wrapText(item.sublabel || '', subChars);
     subLines.forEach((line, idx) => {
-      content += `<text x="${cx}" y="${H3 * 0.81 + idx * sublabelSize * 1.3}"
+      content += `<text x="${cx}" y="${H3 * 0.83 + idx * sublabelSize * 1.3}"
         text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${sublabelSize}" fill="${sublabelColor}">${esc(line)}</text>`;
     });
@@ -434,8 +433,8 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
       item.text || '',
       badgeInnerW,
       textAreaH,
-      Math.floor(H4 * 0.095),
-      7,
+      Math.max(Math.floor(H4 * 0.14), 11),
+      9,
       1.35
     );
 
@@ -455,7 +454,7 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
       content += `<text x="${cx}" y="${iconBottomY + (idx + 1) * lineGap}"
         text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${fontSize}" font-weight="700"
-        fill="${featureTextColor}">${esc(line).toUpperCase()}</text>`;
+        fill="${featureTextColor}">${esc(line.toUpperCase())}</text>`;
     });
 
     if (i < 3) {
@@ -488,11 +487,11 @@ exports.buildZone5ProductLabels = (products = [], W, H5, palette = {}) => {
     const item = products[i];
     if (!item) continue;
     const x = i * colW + colW / 2;
-    const name = esc(item.name || '');
+    const name = (item.name || '').toUpperCase();
 
     // Name only — image composited separately using Sharp
     content += `<text x="${x}" y="${H5 * 0.88}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="${nameColor}">
-      ${name.toUpperCase()}
+      ${esc(name)}
     </text>`;
 
     // Vertical Divider
@@ -566,7 +565,7 @@ exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
       wrapText(line, maxChars).forEach(wl => {
         content += `<text x="${textX}" y="${textY}"
           font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="700"
-          fill="rgba(255,255,255,0.88)">${esc(wl).toUpperCase()}</text>`;
+          fill="rgba(255,255,255,0.88)">${esc(wl.toUpperCase())}</text>`;
         textY += lineGap;
       });
     });
@@ -576,7 +575,7 @@ exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
       wrapText(col.highlight, maxChars).forEach(wl => {
         content += `<text x="${textX}" y="${textY}"
           font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="900"
-          fill="${footerAccent}">${esc(wl).toUpperCase()}</text>`;
+          fill="${footerAccent}">${esc(wl.toUpperCase())}</text>`;
         textY += lineGap;
       });
     }
