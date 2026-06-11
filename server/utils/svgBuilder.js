@@ -54,6 +54,27 @@ function autoFitText(text, availableW, availableH, maxFontSize, minFontSize = 8,
 }
 
 /**
+ * Returns the correct text color for use on zoneBgTint backgrounds.
+ * zoneBgTint is always light (per RULE 10), so always returns a dark color.
+ * Prefers the festival's footerBg (a rich dark) over plain black.
+ */
+function getZoneTextColor(palette) {
+  const bg  = palette.zoneBgTint || '#FFF8F0';
+  const r   = parseInt(bg.slice(1,3), 16) / 255;
+  const g   = parseInt(bg.slice(3,5), 16) / 255;
+  const b_  = parseInt(bg.slice(5,7), 16) / 255;
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b_;
+
+  if (lum > 0.5) {
+    // Light background — use festival's dark footer color as text (always readable)
+    return palette.footerBg || '#1A1A1A';
+  } else {
+    // Unexpectedly dark background — use light accent
+    return palette.footerTextAccent || '#FFFFFF';
+  }
+}
+
+/**
  * ZONE 1 — HEADER BAR (Logo left, Tagline center, Contact right)
  */
 exports.buildZone1Header = (data, W, H1, palette = {}) => {
@@ -157,22 +178,23 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
   });
   y += headlineLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.025);
 
-  // Ornamental divider — centered in the left panel (not anchored to leftX)
-  // Use the full available width of the panel to center it properly
-  const dividerCenterX = Math.floor(panelW * 0.40); // center of left panel
-  const dividerHalfWidth = Math.floor(panelW * 0.28); // arm extends 28% of panel each side
+  // Ornamental divider — centered with the text starting from leftX
+  const divStartX = leftX;
+  const divEndX   = Math.floor(panelW * 0.62);
+  const divMidX   = Math.floor((divStartX + divEndX) / 2);
   content += `
-    <line x1="${dividerCenterX - dividerHalfWidth}" y1="${y}" x2="${dividerCenterX - 9}" y2="${y}"
+    <line x1="${divStartX}" y1="${y}" x2="${divMidX - 9}" y2="${y}"
       stroke="${subheadingColor}" stroke-width="1.5" opacity="0.7"/>
-    <polygon points="${dividerCenterX},${y-6} ${dividerCenterX+8},${y} ${dividerCenterX},${y+6} ${dividerCenterX-8},${y}"
+    <polygon points="${divMidX},${y-6} ${divMidX+8},${y} ${divMidX},${y+6} ${divMidX-8},${y}"
       fill="${subheadingColor}" opacity="0.85"/>
-    <line x1="${dividerCenterX + 9}" y1="${y}" x2="${dividerCenterX + dividerHalfWidth}" y2="${y}"
+    <line x1="${divMidX + 9}" y1="${y}" x2="${divEndX}" y2="${y}"
       stroke="${subheadingColor}" stroke-width="1.5" opacity="0.7"/>`;
   y += Math.floor(panelH * 0.055);
 
   // Subheading
   if (subheading) {
-    const subChars = Math.floor(safeTextW / (subheadingSize * 0.60));
+    const subCharWidth = subheadingSize * 0.60 + 2;  // +2 for letter-spacing
+    const subChars     = Math.floor(safeTextW / subCharWidth);
     const subheadingLines = wrapText(subheading, subChars);
     subheadingLines.forEach((line, i) => {
       content += `<text x="${leftX}" y="${y + i * (subheadingSize * 1.15)}"
@@ -192,28 +214,30 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
     y += lineGap;
   });
 
-  // Closing slogan — pinned near bottom, pushed down if body copy runs very long, but capped to avoid screen cutoff
+  // Closing slogan — placed dynamically 28px below last body line with bottom boundary safety cap
   if (closingSlogan) {
-    const sloganLines = wrapText(closingSlogan, 26);
+    const sloganChars   = Math.floor(safeTextW / (sloganSize * 0.60));
+    const sloganLines   = wrapText(closingSlogan, sloganChars);
     const sloganLineGap = Math.floor(sloganSize * 1.35);
+    const sloganTotalH  = sloganLines.length * sloganLineGap;
     
-    let sy = Math.floor(panelH * 0.83);
-    const minSloganY = y + Math.floor(panelH * 0.03);
-    if (sy < minSloganY) {
-      sy = minSloganY;
-    }
+    // Natural position: 28px below last body line
+    const naturalSloganY = y + 28;
     
-    const maxSloganY = panelH - Math.floor(sloganSize * 1.1) - (sloganLines.length - 1) * sloganLineGap;
-    if (sy > maxSloganY) {
-      sy = maxSloganY;
-    }
+    // Cap: must not go closer than 12px from panel bottom
+    const maxAllowedSloganY = panelH - sloganTotalH - 12;
+    
+    // Pick natural position but respect the cap
+    let sy = Math.min(naturalSloganY, maxAllowedSloganY);
+    
+    // Safety: never above body text
+    if (sy < y + 12) sy = y + 12;
 
-    sloganLines.forEach(line => {
-      content += `<text x="${leftX}" y="${sy}"
+    sloganLines.forEach((line, i) => {
+      content += `<text x="${leftX}" y="${sy + i * sloganLineGap}"
         text-anchor="start" font-family="Arial, sans-serif"
         font-size="${sloganSize}" font-style="italic" font-weight="700"
         fill="${sloganColor}">${esc(line)}</text>`;
-      sy += sloganLineGap;
     });
   }
 
@@ -239,8 +263,6 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
  * and box background tint now matches the festival palette for a premium look.
  */
 exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = '') => {
-  const text = quote || '';
-
   const primaryAccent   = palette.iconCircleColor    || '#FFD700';
   const secondaryAccent = palette.featureBorderColor || '#FF6347';
   const useDarkPanel    = palette.useDarkPanel !== false; // default true
@@ -257,27 +279,36 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   // Icon circle is positioned 22px above the top of the box border
   // so it "floats" above the box — no overlap with text
   const iconR       = 16;
-  const iconCy      = iconR + 2;           // icon center at y=18
-  const boxStartY   = iconR * 2 + 10;      // box starts at y=42 — clear 24px gap below icon Y center
+  const iconCy      = iconR + 2;           // icon center y = 18
+  const boxStartY   = iconR * 2 + 10;      // box top edge y = 42
   const paddingX    = 18;
+  const paddingInner = 16;                 // padding inside box top
   const paddingBot  = 14;
 
   // SVG height accommodates the icon overhang
   const svgH = boxH + boxStartY;
+  
+  // Text starts at this exact Y — must be used for BOTH autoFitText and rendering
+  const textStartY     = boxStartY + paddingInner + 4;
+  const boxInnerBottom = svgH - paddingBot - 4;
+  const availableH     = boxInnerBottom - textStartY;
+
   const availableW = boxW - paddingX * 2;
-  const availableH = svgH - boxStartY - paddingBot - 28;
+
+  // Hard cap the text — never allow > 130 chars regardless of GPT output
+  const text = (quote || '').substring(0, 130);
 
   const { fontSize, lines, lineGap } = autoFitText(
     text,
     availableW,
     availableH,
-    Math.floor(boxH * 0.085),
-    9,
-    1.5
+    Math.floor(boxH * 0.080),
+    8,
+    1.45
   );
 
   const midX = boxW / 2;
-  let currentY = boxStartY + 18; // text begins 18px below box top
+  let currentY = textStartY;
   let textElements = '';
 
   // Floating icon — star inside a circle, sitting above the box
@@ -315,8 +346,9 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
 exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
   const zoneBgTint      = palette.zoneBgTint       || '#FFF8F0';
   const iconCircleColor = palette.iconCircleColor   || '#E07000';
-  const labelColor      = palette.headlineColor     || '#1A1A1A';  // use festival headline color for labels
-  const sublabelColor   = palette.bodyTextColor !== '#FFFFFF' ? (palette.bodyTextColor || '#555555') : '#555555';
+  const zoneTextColor   = getZoneTextColor(palette);
+  const labelColor      = zoneTextColor;
+  const sublabelColor   = zoneTextColor + 'AA';  // same color at ~67% opacity
   const dividerColor    = palette.featureBorderColor ? palette.featureBorderColor + '55' : '#DDDDDD';
 
   const colW = W / 3;
@@ -383,9 +415,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
 exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
   const zoneBgTint         = palette.zoneBgTint        || '#FFF8F0';
   const featureBorderColor = palette.featureBorderColor || '#E07000';
-  const featureTextColor   = palette.headlineColor !== palette.panelBg
-    ? (palette.headlineColor || '#1A1A1A')
-    : '#1A1A1A';  // never invisible text
+  const featureTextColor   = getZoneTextColor(palette);
   const colW = W / 4;
   const padX = Math.floor(colW * 0.08);
   const padY = Math.floor(H4 * 0.12);
@@ -447,7 +477,7 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
  */
 exports.buildZone5ProductLabels = (products = [], W, H5, palette = {}) => {
   const bg         = palette.zoneBgTint        || '#FFF8F0';
-  const nameColor  = palette.featureBorderColor || palette.headlineColor || '#333333';
+  const nameColor  = getZoneTextColor(palette);
   const divColor   = (palette.featureBorderColor || '#888888') + '44';
   const N = Math.max(products.length, 1);
   const colW = W / N;

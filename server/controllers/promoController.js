@@ -534,7 +534,7 @@ STRICT LENGTH LIMITS — required for the poster layout to render correctly:
 - headline: max 20 characters (e.g. "Happy Holi!" = 11 chars)
 - subheading: max 30 characters
 - closingSlogan: max 40 characters
-- rightBoxQuote: max 120 characters total
+- rightBoxQuote: STRICT max 110 characters. Count the characters before submitting. If over 110, shorten it.
 - valuesRow[].label: ONE word only, max 12 characters
 - valuesRow[].sublabel: max 22 characters (3-4 short words)
 - featuresBar[].text: max 30 characters
