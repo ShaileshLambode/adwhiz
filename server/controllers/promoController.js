@@ -15,7 +15,7 @@ const {
   buildZone2Right_QuoteBox,
   buildZone3ValuesRow,
   buildZone4FeaturesBar,
-  buildZone5ProductIcons,
+  buildZone5ProductLabels,
   buildZone6FooterStrip
 } = require("../utils/svgBuilder");
 const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
@@ -199,7 +199,7 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, palette, template.occasion);
   const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, palette);
   const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, palette);
-  const z5Svg = buildZone5ProductIcons(overrides.productCategories, W, zones.z5, palette);
+  const z5Svg = buildZone5ProductLabels(overrides.productCategories, W, zones.z5, palette);
   const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, palette);
 
   // 7. Composite in array order
@@ -229,11 +229,45 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   currentY += zones.z4;
 
   // Zone 5 — Product Categories
-  composites.push({ input: z5Svg, top: currentY, left: 0 });
+  const currentY_z5 = currentY;
+  composites.push({ input: z5Svg, top: currentY_z5, left: 0 });
   currentY += zones.z5;
 
   // Zone 6 — Footer Strip
   composites.push({ input: z6Svg, top: currentY, left: 0 });
+
+  // 8. Product image compositing
+  const productComposites = [];
+  if (overrides.productCategories && overrides.productCategories.length > 0) {
+    const N = overrides.productCategories.length;
+    const colW = Math.floor(W / N);
+    const imgSize = Math.min(Math.floor(zones.z5 * 0.65), colW - 8); // max size fits in cell
+    const imgY = currentY_z5 + Math.floor(zones.z5 * 0.08); // top padding
+
+    for (let i = 0; i < N; i++) {
+      const prod = overrides.productCategories[i];
+      if (!prod || !prod.imageUrl) continue;
+
+      try {
+        const productImgBuffer = await axios
+          .get(prod.imageUrl, { responseType: 'arraybuffer', timeout: 8000 })
+          .then(r => Buffer.from(r.data));
+
+        const resizedProduct = await sharp(productImgBuffer)
+          .resize({ width: imgSize, height: imgSize, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer();
+
+        const imgX = i * colW + Math.floor((colW - imgSize) / 2);
+        productComposites.push({ input: resizedProduct, top: imgY, left: imgX });
+      } catch (err) {
+        console.warn(`Product image ${i} failed to load:`, err.message);
+        // Silently skip — name label still shows from SVG
+      }
+    }
+  }
+
+  composites.push(...productComposites);
 
   // Brand Logo top-left centered vertically
   const logoTop = Math.floor((zones.z1 - logoH) / 2);
@@ -480,9 +514,16 @@ RULE 9 — featureBorderColor:
   Border color for the feature badge pill outlines. Can match or complement iconCircleColor.
 
 RULE 10 — zoneBgTint:
-  Background tint for the values row, features bar, and product row zones.
-  ALWAYS a very light warm near-white. Examples: #FFF8F0, #F9F6F2, #F5FFF5, #F0FFF0.
-  NEVER dark. These zones are a visual breathing space between the hero and footer.`;
+  Background for Zones 3, 4, and 5 (values row, features bar, products row).
+  Use a CLEARLY VISIBLE light tint of the festival color — not plain white.
+  It must look like a deliberate background choice, not an accident.
+  For warm/orange festivals: #FFF0E0 or #FFE8CC range.
+  For red/maroon festivals: #FFF0F0 or #FFE8E8 range.
+  For green festivals: #F0FFF0 or #E8F5E8 range.
+  For purple/indigo festivals: #F5F0FF or #EDE0FF range.
+  For pink/magenta festivals: #FFF0F8 or #FFE0F0 range.
+  Minimum saturation: the hex value must differ from #FFFFFF by at least 20 in at least one channel.
+  NEVER return #FFFFFF, #FAFAFA, #F8F8F8, or any near-white without a clear hue.`;
 
     const userPrompt = `Generate complete festival marketing poster content for "${festivalName}".
 Business: ${businessName} | Sector: ${sector || 'General'} | Website: ${website || ''} | Email: ${email || ''}
@@ -629,5 +670,48 @@ exports.togglePromoFavorite = async (req, res) => {
 };
 
 exports.runGeneration = runGeneration;
+
+exports.uploadProductImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const fs = require('fs');
+    
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'promo_product_images',
+      resource_type: 'image',
+      transformation: [
+        { width: 200, height: 200, crop: 'fill', gravity: 'center' },
+        { background: 'white', effect: 'trim' }
+      ]
+    });
+
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (err) {
+      console.warn("Failed to delete local file:", err.message);
+    }
+
+    return res.status(200).json({
+      imageUrl:           result.secure_url,
+      cloudinaryPublicId: result.public_id
+    });
+  } catch (error) {
+    console.error('Product image upload error:', error.message);
+    if (req.file && req.file.path) {
+      const fs = require('fs');
+      try {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (err) {
+        console.warn("Failed to cleanup local file:", err.message);
+      }
+    }
+    return res.status(500).json({ error: 'Failed to upload product image' });
+  }
+};
 
 

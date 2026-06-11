@@ -8,8 +8,10 @@ const {
   togglePromoFavorite,
   regeneratePromo,
   aiFillContent,
+  uploadProductImage,
 } = require("../controllers/promoController");
 const { userMiddleware } = require("../middleware/UserMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 const router = express.Router();
 
@@ -26,5 +28,6 @@ router.delete("/delete/:id", userMiddleware, deletePromo);
 router.get("/download/:id", userMiddleware, downloadPromo);
 router.patch("/favorite/:id", userMiddleware, togglePromoFavorite);
 router.put("/regenerate/:id", userMiddleware, regeneratePromo);
+router.post("/upload-product-image", userMiddleware, upload.single("image"), uploadProductImage);
 
 module.exports = router;

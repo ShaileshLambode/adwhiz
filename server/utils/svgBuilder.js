@@ -121,28 +121,34 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
   const sloganColor     = palette.sloganColor      || headlineColor;
 
   // VISUAL HIERARCHY: headline is massive, subheading medium, body small
-  const headlineSize    = Math.floor(panelH * 0.115); // ~47px — dominant
+  const headlineSize    = Math.floor(panelH * 0.100); // ~40px — safe
   const subheadingSize  = Math.floor(panelH * 0.048); // ~20px — clearly smaller
   const sloganSize      = Math.floor(panelH * 0.046); // ~19px — slightly larger than body
 
-  // Wrap at 36 characters to prevent excessive lines
-  const bodyLines = wrapText(bodyMessage, 36);
+  const leftX = Math.floor(panelW * 0.08);
+  const safeTextW = panelW - leftX - Math.floor(panelW * 0.14); // leave 14% for fade
 
   // Auto-scale body text size based on number of lines to prevent vertical overlap
   let bodySize = Math.floor(panelH * 0.038); // ~16px
+  let bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
+  let bodyLines = wrapText(bodyMessage, bodyChars);
   if (bodyLines.length > 5) {
     bodySize = Math.floor(panelH * 0.034); // ~14px
+    bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
+    bodyLines = wrapText(bodyMessage, bodyChars);
   }
   if (bodyLines.length > 7) {
     bodySize = Math.floor(panelH * 0.030); // ~12px
+    bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
+    bodyLines = wrapText(bodyMessage, bodyChars);
   }
 
   let content = '';
   let y = Math.floor(panelH * 0.10) + headlineSize;
-  const leftX = Math.floor(panelW * 0.08);
 
-  // Headline — wrap at 15 characters to keep standard greetings on a single line
-  const headlineLines = wrapText(headline, 15);
+  // Headline — wrapped to safe width
+  const headlineChars = Math.floor(safeTextW / (headlineSize * 0.62));
+  const headlineLines = wrapText(headline, headlineChars);
   headlineLines.forEach((line, i) => {
     content += `<text x="${leftX}" y="${y + i * (headlineSize * 1.05)}"
       text-anchor="start" font-family="Arial, sans-serif"
@@ -166,11 +172,15 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
 
   // Subheading
   if (subheading) {
-    content += `<text x="${leftX}" y="${y}"
-      text-anchor="start" font-family="Arial, sans-serif"
-      font-size="${subheadingSize}" font-weight="700"
-      fill="${subheadingColor}" letter-spacing="2">${subheading.toUpperCase()}</text>`;
-    y += Math.floor(panelH * 0.075);
+    const subChars = Math.floor(safeTextW / (subheadingSize * 0.60));
+    const subheadingLines = wrapText(subheading, subChars);
+    subheadingLines.forEach((line, i) => {
+      content += `<text x="${leftX}" y="${y + i * (subheadingSize * 1.15)}"
+        text-anchor="start" font-family="Arial, sans-serif"
+        font-size="${subheadingSize}" font-weight="700"
+        fill="${subheadingColor}" letter-spacing="2">${line.toUpperCase()}</text>`;
+    });
+    y += subheadingLines.length * subheadingSize * 1.15 + Math.floor(panelH * 0.025);
   }
 
   // Body copy
@@ -212,7 +222,7 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
     <defs>
       <linearGradient id="panelFade" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%"   stop-color="${panelBg}" stop-opacity="1"/>
-        <stop offset="88%"  stop-color="${panelBg}" stop-opacity="1"/>
+        <stop offset="93%"  stop-color="${panelBg}" stop-opacity="1"/>
         <stop offset="100%" stop-color="${panelBg}" stop-opacity="0"/>
       </linearGradient>
     </defs>
@@ -244,19 +254,18 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   // Text in box: always dark for legibility (box is white/light)
   const textColor = '#1A1A1A';
 
-  // Icon circle is positioned 16px above the top of the box border
+  // Icon circle is positioned 22px above the top of the box border
   // so it "floats" above the box — no overlap with text
   const iconR       = 16;
-  const iconCy      = iconR + 4;           // icon center Y from svg top (icon floats above box)
-  const boxStartY   = iconR + 4;           // box rect starts where icon sits
-  const iconSpace   = iconR * 2 + 16;      // vertical space consumed by icon + gap
+  const iconCy      = iconR + 2;           // icon center at y=18
+  const boxStartY   = iconR * 2 + 10;      // box starts at y=42 — clear 24px gap below icon Y center
   const paddingX    = 18;
   const paddingBot  = 14;
 
-  // SVG is taller to accommodate floating icon
-  const svgH = boxH + iconR + 4;
+  // SVG height accommodates the icon overhang
+  const svgH = boxH + boxStartY;
   const availableW = boxW - paddingX * 2;
-  const availableH = svgH - iconSpace - boxStartY - paddingBot;
+  const availableH = svgH - boxStartY - paddingBot - 28;
 
   const { fontSize, lines, lineGap } = autoFitText(
     text,
@@ -268,7 +277,7 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   );
 
   const midX = boxW / 2;
-  let currentY = iconSpace + boxStartY + 4;
+  let currentY = boxStartY + 18; // text begins 18px below box top
   let textElements = '';
 
   // Floating icon — star inside a circle, sitting above the box
@@ -312,7 +321,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
 
   const colW = W / 3;
   const circleR = Math.floor(H3 * 0.24);
-  const iconSize = Math.floor(circleR * 1.1);
+  const iconSize = Math.floor(circleR * 0.80);
 
   const labelSize    = Math.max(Math.floor(W * 0.013), 11);
   const sublabelSize = Math.max(Math.floor(W * 0.009), 8);
@@ -361,7 +370,7 @@ exports.buildZone3ValuesRow = (values = [], W, H3, palette = {}) => {
 
   return Buffer.from(`<svg width="${W}" height="${H3}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H3}" fill="${zoneBgTint}"/>
-    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${dividerColor}" stroke-width="2"/>
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${iconCircleColor}" stroke-width="3" opacity="0.5"/>
     <line x1="0" y1="${H3}" x2="${W}" y2="${H3}" stroke="${dividerColor}" stroke-width="2"/>
     ${content}
   </svg>`);
@@ -427,20 +436,19 @@ exports.buildZone4FeaturesBar = (features = [], W, H4, palette = {}) => {
 
   return Buffer.from(`<svg width="${W}" height="${H4}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H4}" fill="${zoneBgTint}"/>
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${featureBorderColor}" stroke-width="3" opacity="0.4"/>
     ${content}
     <line x1="0" y1="${H4}" x2="${W}" y2="${H4}" stroke="${featureBorderColor}" stroke-width="1" opacity="0.3"/>
   </svg>`);
 };
 
 /**
- * ZONE 5 — PRODUCT CATEGORY ICONS (Up to 7 products with icon and name)
- * FIX: Icon and name text now use festival palette colors.
+ * ZONE 5 — PRODUCT CATEGORY LABELS ONLY (Product images composited separately using Sharp)
  */
-exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
+exports.buildZone5ProductLabels = (products = [], W, H5, palette = {}) => {
   const bg         = palette.zoneBgTint        || '#FFF8F0';
-  const iconColor  = palette.iconCircleColor   || '#E07000';
-  const nameColor  = palette.featureBorderColor ? palette.featureBorderColor : (palette.headlineColor || '#333333');
-  const divColor   = palette.featureBorderColor ? palette.featureBorderColor + '44' : '#E5E7EB';
+  const nameColor  = palette.featureBorderColor || palette.headlineColor || '#333333';
+  const divColor   = (palette.featureBorderColor || '#888888') + '44';
   const N = Math.max(products.length, 1);
   const colW = W / N;
 
@@ -450,27 +458,23 @@ exports.buildZone5ProductIcons = (products = [], W, H5, palette = {}) => {
     const item = products[i];
     if (!item) continue;
     const x = i * colW + colW / 2;
-
-    const icon = esc(item.icon || '★');
     const name = esc(item.name || '');
 
-    // Icon — colored with palette accent
-    content += `<text x="${x}" y="${H5 * 0.50}" text-anchor="middle" font-size="20" font-family="Arial, sans-serif" fill="${iconColor}">${icon}</text>`;
-    
-    // Name — colored with palette
-    content += `<text x="${x}" y="${H5 * 0.82}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="${nameColor}">
+    // Name only — image composited separately using Sharp
+    content += `<text x="${x}" y="${H5 * 0.88}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="${nameColor}">
       ${name.toUpperCase()}
     </text>`;
 
     // Vertical Divider
     if (i < N - 1) {
       const divX = (i + 1) * colW;
-      content += `<line x1="${divX}" y1="10" x2="${divX}" y2="${H5 - 10}" stroke="${divColor}" stroke-width="1" />`;
+      content += `<line x1="${divX}" y1="8" x2="${divX}" y2="${H5 - 8}" stroke="${divColor}" stroke-width="1" />`;
     }
   }
 
   const svg = `<svg width="${W}" height="${H5}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H5}" fill="${bg}" />
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${nameColor}" stroke-width="3" opacity="0.35"/>
     ${content}
     <!-- Bottom separator -->
     <line x1="0" y1="${H5 - 1}" x2="${W}" y2="${H5 - 1}" stroke="${divColor}" stroke-width="1" />

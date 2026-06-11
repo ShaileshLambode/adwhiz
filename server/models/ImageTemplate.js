@@ -30,8 +30,8 @@ const imageTemplateSchema = new mongoose.Schema({
 
   // Zone 5 — Product categories (user's product list)
   productCategories: [{
-    icon: String,            // "🎒" "👜" "💼"
-    name: String,            // "LAPTOP BAG"
+    imageUrl: String,
+    name: String,
   }],
 
   // Zone 6 — Footer columns (4 items)

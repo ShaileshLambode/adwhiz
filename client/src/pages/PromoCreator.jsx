@@ -122,7 +122,7 @@ const PromoCreator = () => {
     // Initialize product categories (user customizable list)
     setProductCategories(
       template.productCategories
-        ? template.productCategories.map(p => ({ icon: p.icon || "★", name: p.name || "" }))
+        ? template.productCategories.map(p => ({ imageUrl: p.imageUrl || null, name: p.name || "" }))
         : []
     );
 
@@ -186,7 +186,24 @@ const PromoCreator = () => {
       toast.warning("Maximum of 8 products reached.");
       return;
     }
-    setProductCategories(prev => [...prev, { icon: "🎒", name: "NEW PRODUCT" }]);
+    setProductCategories(prev => [...prev, { imageUrl: null, name: "NEW PRODUCT" }]);
+  };
+
+  const handleProductImageUpload = async (index, file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await axios.post(
+        `${BACKEND_URL}/api/promo/upload-product-image`,
+        formData,
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
+      );
+      setProductCategories(prev => prev.map((item, idx) => idx === index ? { ...item, imageUrl: res.data.imageUrl } : item));
+      toast.success('Product image uploaded successfully!');
+    } catch (err) {
+      console.error('Failed to upload product image:', err);
+      toast.error('Failed to upload product image');
+    }
   };
 
   const handleRemoveProduct = (index) => {
@@ -625,26 +642,31 @@ const PromoCreator = () => {
                       + Add Product
                     </button>
                   </div>
-                  
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {productCategories.map((prod, idx) => (
                       <div key={idx} className="flex gap-2 bg-white p-2 rounded-lg border border-gray-200 items-center justify-between">
-                        <div className="flex gap-2 items-center flex-1">
-                          <input 
-                            type="text" 
-                            placeholder="Icon"
-                            value={prod.icon} 
-                            onChange={(e) => handleProductChange(idx, 'icon', e.target.value)}
-                            className="w-10 border border-gray-300 rounded-md p-1.5 text-center text-sm"
+                        <label className="cursor-pointer flex-shrink-0">
+                          {prod.imageUrl ? (
+                            <img src={prod.imageUrl} alt="" className="w-10 h-10 object-cover rounded-md border"/>
+                          ) : (
+                            <div className="w-10 h-10 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs font-bold">
+                              +
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => e.target.files[0] && handleProductImageUpload(idx, e.target.files[0])}
                           />
-                          <input 
-                            type="text" 
-                            placeholder="Product Name"
-                            value={prod.name} 
-                            onChange={(e) => handleProductChange(idx, 'name', e.target.value)}
-                            className="flex-1 border border-gray-300 rounded-md p-1.5 text-sm"
-                          />
-                        </div>
+                        </label>
+                        <input 
+                          type="text" 
+                          placeholder="Product Name"
+                          value={prod.name} 
+                          onChange={(e) => handleProductChange(idx, 'name', e.target.value)}
+                          className="flex-1 border border-gray-300 rounded-md p-1.5 text-sm ml-1"
+                        />
                         <button 
                           type="button" 
                           onClick={() => handleRemoveProduct(idx)}
@@ -836,7 +858,7 @@ const PromoCreator = () => {
                         </div>
                         <div className="text-xs">
                           <span className="text-gray-400 uppercase font-semibold mr-1.5">Products:</span>
-                          <span className="text-gray-700 italic">{productCategories.map(p => `${p.icon} ${p.name}`).join(', ')}</span>
+                          <span className="text-gray-700 italic">{productCategories.map(p => `${p.imageUrl ? '📷' : '🎒'} ${p.name}`).join(', ')}</span>
                         </div>
                       </div>
                     </div>

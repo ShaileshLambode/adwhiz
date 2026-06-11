@@ -37,7 +37,7 @@ const promoPostSchema = new mongoose.Schema({
     },
     valuesRow:         [{ icon: String, label: String, sublabel: String }],
     featuresBar:       [{ icon: String, text: String }],
-    productCategories: [{ icon: String, name: String }],
+    productCategories: [{ imageUrl: String, cloudinaryPublicId: String, name: String }],
     footerColumns:     [{ icon: String, lines: [String], highlight: String }],
   },
   generatedImageUrl: {
