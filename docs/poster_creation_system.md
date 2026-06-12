@@ -60,9 +60,9 @@ The flyer canvas (W×H) is divided into 6 distinct, contiguous vertical layout z
 | **Zone 1: Header** | Brand identification and contact details. | White background, left aligned brand logo, center tagline, right-aligned parsed business contact info. |
 | **Zone 2: Hero Left** | Main occasion branding and text copy. | Dark semi-transparent (Holi, Diwali) or solid cream (Bhai Dooj) text panel with headline, tagline, and slogans. |
 | **Zone 2 Right** | Visual background scenery. | Recraft V3 flat digital illustration (`digital_illustration` preset) cropped and resized to fill the right half. |
-| **Zone 2 Right Box** | Slogan card overlay. | A white, rounded translucent overlay card with double dashed borders and centered quote lines. |
-| **Zone 3: Values Row** | Highlight core company values (Enjoy, Love, Celebrate). | 3 columns separated by light vertical rules, containing circled emojis, uppercase labels, and descriptions. |
-| **Zone 4: Features Bar** | Reassure brand features (Made in India, Premium, etc.). | 4 columns, separated by vertical dividers, showing icons and uppercase text lines. |
+| **Zone 2 Right Box** | Slogan card overlay. | A white, rounded translucent overlay card with double dashed borders and quote text dynamically centered vertically (and truncated at 110 characters). |
+| **Zone 3: Values Row** | Highlight core company values (Enjoy, Love, Celebrate). | 3 columns separated by light vertical rules. Circle borders are compact (radius `H3 * 0.12`, center Y=30) and labels (15px) and sublabels (11px) are scaled up and aligned at Y=59/Y=83 to prevent collisions. |
+| **Zone 4: Features Bar** | Reassure brand features (Made in India, Premium, etc.). | 4 columns, separated by vertical dividers, showing icons and uppercase feature text with dynamic auto-fitting bounds (9px-11px). |
 | **Zone 5: Product Row** | Showcase available product categories. | Horizontal row of product category icons (backpacks, wallets, belts, folders) with bold subtexts. |
 | **Zone 6: Footer Strip** | Final brand slogan and columns. | Dark-colored footer divided into 4 columns with brand details and gold highlighted sentences. |
 
@@ -75,6 +75,7 @@ All text layout coordinates are programmatically composited via server-side SVGs
 1. **Font Uniformity**: To guarantee platform consistency across development, staging, and production environments, all text overlays default to `Arial, sans-serif` supported natively by `librsvg`.
 2. **Dynamic Text Wrapping**: Input paragraphs (body messages, quote boxes, footer lines) are programmatically split into lines using custom `wrapText` logic before rendering to prevent horizontal overflows.
 3. **No Recraft `text_layout` Dependency**: Display typography is entirely built programmatically on the server, removing reliance on Recraft's signage features. This ensures spelling accuracy and allows the use of lowercase text.
+4. **XML Escaping & Case Safety**: Enforces secure rendering of special characters (like `&`) by capitalizing strings before applying XML/HTML escaping (`esc()`). This prevents entity conversion issues (such as `&amp;` getting capitalized into `&AMP;`), avoiding Sharp parsing failures.
 
 ---
 

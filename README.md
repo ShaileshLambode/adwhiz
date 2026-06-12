@@ -46,8 +46,16 @@ graph TD
 ## ✨ Features
 
 * **Brand Identity Profiles**: Save your business name, sector, and company logo. Logos are automatically parsed and optimized via Cloudinary.
-* **AI-Powered Banner Generation**: Enter a prompt or select a predefined style/tone. The system creates realistic image backdrops tailored to your business sector.
-* **Automated Compositing**: Automatically embeds the company logo as a watermark at the optimal position (resized to 20% of the banner's width) using the Sharp library.
+* **AI-Powered Multi-Zone Poster Generation**: Uses Recraft V3 to render high-quality festive background scenes, combined with programmatic server-side SVG overlays (rendered with Sharp) across 6 layout zones:
+  * **Zone 1 (Header Bar)**: Branded logo, center tagline, and business contact coordinates.
+  * **Zone 2 (Hero Section)**: Left panel displaying rich festival text, and a right panel containing a decorative Quote Box with dynamic vertical centering and character limits.
+  * **Zone 3 (Values Row)**: 3-column circular icons, labels, and sublabels with refined spacing.
+  * **Zone 4 (Marketing Features Bar)**: 4-column customizable badges. Dynamic font scaling (9px-11px) ensures text readability.
+  * **Zone 5 (Product Categories Showcase)**: Product category names and uploaded product image assets.
+  * **Zone 6 (Footer Strip)**: Rich, dark-colored anchoring bar with 4 customizable info columns.
+* **Full Creator Wizard UI**: Decoupled wizard step cards for editing every zone (including the previously missing Zone 4 marketing features).
+* **Contrast-Adaptive Layouts**: Server-side luminance checking adapts text colors to keep copy readable over light background tints.
+* **XML Escaping & Capitalization Safety**: Enforces secure rendering of special characters (like `&`) by capitalizing prior to XML escaping to prevent entity corruption.
 * **Personal Workspace**: View and manage all generated posts:
   * **Favorite / Archive**: Toggle posts as favorites for quick access.
   * **One-Click Download**: Directly download high-resolution composite images.

@@ -32,20 +32,23 @@ AdWhiz follows a modern **Monorepo-style** architecture with a clear separation 
 ## 🔄 Core Workflows
 
 ### 1. Brand Identity Setup
-Users upload their business logo and provide basic business information (Name, Sector, Address). These assets are stored in Cloudinary and referenced in the database for all future post generations.
+Users upload their business logo and provide basic business information (Name, Sector, Address, website, email). These assets are stored in Cloudinary and referenced in the database for all future post and flyer generations.
 
-### 2. AI-Powered Generation
-The generation process is handled in `postController.js`:
-1.  **Prompt Engineering**: The system constructs a detailed prompt using the business name, sector, description, and selected tone.
-2.  **AI Call**: A request is sent to Recraft AI to generate a realistic background scene.
-3.  **Logo Compositing**: Once the AI image is generated, the **Sharp** library is used to overlay the business logo onto the generated image at a specific position.
-4.  **Persistence**: The final branded image is uploaded to Cloudinary, and the post data is saved to MongoDB.
+### 2. Multi-Zone Poster Generation Pipeline
+The promo creator handles poster generation inside `promoController.js` through a structured vertical pipeline:
+1.  **AI Copywriter Assistant (`aiFillContent`)**: GPT-4o-mini generates high-converting marketing copy and a festival-themed cohesive color palette (`festivalPalette`), returning structured JSON.
+2.  **Backdrop Scene Call**: The server calls the Recraft V3 API (`recraftv3` model) to render a textless background scene matching the festival theme and using brand logo colors.
+3.  **Vertical Zone Assembly**: The system dynamically splits the poster height into 6 zones and builds SVG buffers for each:
+    - **Header Bar (Zone 1)**: Automatically positions the brand logo on the left and parses website/email contact coordinates on the right.
+    - **Hero Panels (Zone 2)**: Renders typography on the left and maps the decorative, vertically-centered Quote Box card overlay on the right.
+    - **Values Row (Zone 3)**: Aligns 3 columns of circular badges, uppercase labels, and sublabels.
+    - **Features Bar (Zone 4)**: Composites 4-column badges with dynamic font sizes tailored to text length.
+    - **Product Showcase (Zone 5)**: Integrates customizable product category names and crops uploaded images.
+    - **Footer Strip (Zone 6)**: Renders a brand anchoring strip with optional highlighted call-to-actions.
+4.  **Sharp Compositing & Upload**: Sharp composites these SVGs and logo files vertically. The final JPEG is uploaded to Cloudinary and saved to MongoDB.
 
-### 3. User Workspace
-Users can manage their generated content through:
-- **Favorites**: Toggle specific posts as favorites for quick access.
-- **Downloads**: High-quality downloads of the branded images.
-- **Regeneration**: Quickly recreate posts with updated parameters while keeping the same brand context.
+### 3. User Wizard Workspace
+Users customize every detail of the poster using a tabbed form wizard (`PromoCreator.jsx`) in the React client, including brand profiles, occasion prompts, values, marketing features, product categories, and footer columns.
 
 ---
 
@@ -55,7 +58,8 @@ Users can manage their generated content through:
 | :--- | :--- |
 | **User** | Stores user credentials, profile information, and Google OAuth identifiers. |
 | **Logo** | Links a user to their uploaded brand assets and business metadata. |
-| **Post** | Contains references to the generated image, the parameters used (tone, sector), and favorite status. |
+| **ImageTemplate** | Holds default occasion blueprints (defaults for hero, values, features, products, footers). |
+| **PromoPost** | Contains final poster links, user-applied layout overrides, and favorited status. |
 
 ---
 
@@ -63,11 +67,17 @@ Users can manage their generated content through:
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/api/user/` | `POST` | User registration, login, and Google OAuth handling. |
-| `/api/logo/` | `POST` / `GET` | Uploading and retrieving business brand assets. |
-| `/api/post/` | `POST` | Trigger the AI generation and compositing workflow. |
-| `/api/post/view` | `GET` | Retrieve a list of generated posts for the authenticated user. |
-| `/api/post/favorite/:id` | `PATCH` | Toggle the favorite status of a specific post. |
+| `/api/user/signup` | `POST` | User registration |
+| `/api/user/login` | `POST` | Local login authentication |
+| `/api/logo/add` | `POST` | Upload business logo and brand profiles to Cloudinary |
+| `/api/logo/list` | `GET` | List user's business profiles |
+| `/api/promo/templates` | `GET` | Retrieve list of active festival poster templates |
+| `/api/promo/ai-fill` | `POST` | Query GPT-4o-mini to fill marketing copy and palettes |
+| `/api/promo/generate` | `POST` | Trigger the Multi-Zone Recraft + Sharp layout generation |
+| `/api/promo/list` | `GET` | Retrieve generated poster gallery history |
+| `/api/promo/download/:id` | `GET` | Download a high-res marketing flyer attachment |
+| `/api/promo/favorite/:id` | `PATCH` | Toggle favorite status of a poster |
+| `/api/promo/upload-product-image` | `POST` | Upload customized category image to Cloudinary |
 
 ---
 
