@@ -46,7 +46,13 @@ const promoPostSchema = new mongoose.Schema({
   favorite: {
     type: Boolean,
     default: false
-  }
+  },
+  socialPosts: [{
+    platform:       String,              // 'instagram'
+    externalPostId: String,              // Instagram media ID returned after publish
+    caption:        String,
+    publishedAt:    { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model("PromoPost", promoPostSchema);

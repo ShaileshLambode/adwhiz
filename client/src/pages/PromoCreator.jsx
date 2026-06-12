@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { FaInstagram } from 'react-icons/fa';
+import PublishModal from '../components/PublishModal';
 
 const PromoCreator = () => {
   const navigate = useNavigate();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem('token');
+  const [activePublishPost, setActivePublishPost] = useState(null);
 
   // Wizard Steps:
   // 1: Brand & Occasion Selection + AI Fill
@@ -831,12 +834,22 @@ const PromoCreator = () => {
                     />
                   </div>
 
-                  <div className="flex justify-center gap-4">
+                  <div className="flex flex-wrap justify-center gap-4">
                     <button
                       onClick={() => handleDownload(generatedResult._id, generatedResult.occasion)}
                       className="px-6 py-3 bg-gradient-to-r from-[#F8AD9D] to-[#FF6666] text-white font-bold rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
                     >
                       Download Poster
+                    </button>
+                    <button
+                      onClick={() => setActivePublishPost({
+                        id: generatedResult._id,
+                        generatedImageUrl: generatedResult.generatedImageUrl
+                      })}
+                      className="px-6 py-3 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white font-bold rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <FaInstagram size={18} />
+                      Share to Instagram
                     </button>
                     <button 
                       onClick={() => {
@@ -958,6 +971,12 @@ const PromoCreator = () => {
 
         </div>
       </div>
+      {activePublishPost && (
+        <PublishModal 
+          post={activePublishPost} 
+          onClose={() => setActivePublishPost(null)} 
+        />
+      )}
     </div>
   );
 };

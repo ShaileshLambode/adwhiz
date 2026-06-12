@@ -25,7 +25,7 @@ AdWhiz follows a modern **Monorepo-style** architecture with a clear separation 
 - **Image Hosting**: [Cloudinary](https://cloudinary.com/) for asset storage and optimization.
 - **Payments**: [Stripe](https://stripe.com/) for subscription and credit management.
 - **Image Processing**: [Sharp](https://sharp.pixelplumbing.com/) for high-performance server-side image compositing.
-- **Authentication**: Google OAuth 2.0 & JWT.
+- **Authentication & OAuth**: Google OAuth 2.0, JWT, and Meta/Instagram Professional Login.
 
 ---
 
@@ -50,6 +50,11 @@ The promo creator handles poster generation inside `promoController.js` through 
 ### 3. User Wizard Workspace
 Users customize every detail of the poster using a tabbed form wizard (`PromoCreator.jsx`) in the React client, including brand profiles, occasion prompts, values, marketing features, product categories, and footer columns.
 
+### 4. Direct Instagram Publishing
+Users connect their Instagram Business or Creator profile via the Meta OAuth flow. The backend exchanges the temporary OAuth code for a short-lived token and then a 60-day long-lived access token, fetching the user's profile details.
+A background cron job runs daily at 3 AM to auto-refresh access tokens that are within 10 days of expiration.
+When publishing, the server uploads the selected poster to an Instagram media container and publishes it directly to the user's live Instagram feed, archiving the post ID in the DB.
+
 ---
 
 ## 📊 Data Models
@@ -58,8 +63,9 @@ Users customize every detail of the poster using a tabbed form wizard (`PromoCre
 | :--- | :--- |
 | **User** | Stores user credentials, profile information, and Google OAuth identifiers. |
 | **Logo** | Links a user to their uploaded brand assets and business metadata. |
+| **SocialAccount** | Stores Instagram scoped user ID, username, profile picture, long-lived access token, and expiration timestamp. |
 | **ImageTemplate** | Holds default occasion blueprints (defaults for hero, values, features, products, footers). |
-| **PromoPost** | Contains final poster links, user-applied layout overrides, and favorited status. |
+| **PromoPost** | Contains final poster links, user-applied layout overrides, favorited status, and a list of published `socialPosts`. |
 
 ---
 
@@ -78,6 +84,11 @@ Users customize every detail of the poster using a tabbed form wizard (`PromoCre
 | `/api/promo/download/:id` | `GET` | Download a high-res marketing flyer attachment |
 | `/api/promo/favorite/:id` | `PATCH` | Toggle favorite status of a poster |
 | `/api/promo/upload-product-image` | `POST` | Upload customized category image to Cloudinary |
+| `/api/social/instagram/auth-url` | `GET` | Retrieve Meta OAuth URL to connect Instagram Professional |
+| `/api/social/instagram/callback` | `GET` | OAuth redirect callback exchanging code for token |
+| `/api/social/account` | `GET` | Fetch connected Instagram account metadata |
+| `/api/social/disconnect` | `DELETE` | Disconnect the connected Instagram account |
+| `/api/social/publish/instagram` | `POST` | Publish a poster to the connected Instagram professional feed |
 
 ---
 

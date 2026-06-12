@@ -32,6 +32,13 @@ app.use("/api/post", postRoutes);
 // Promotional Image Generation
 app.use("/api/promo", promoRoutes);
 
+// Social Media Integration (Instagram)
+const socialRoutes = require("./routes/socialRoutes");
+app.use("/api/social", socialRoutes);
+
+// Start Token Auto-Refresh Cron Job
+const { startTokenRefreshJob } = require("./utils/tokenRefresher");
+startTokenRefreshJob();
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`) || 4000);
 

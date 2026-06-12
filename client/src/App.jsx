@@ -19,9 +19,10 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import FavoriteList from './pages/FavoriteList'
 import PromoCreator from './pages/PromoCreator'
 import PromoGallery from './pages/PromoGallery'
+import SocialConnect from './pages/SocialConnect'
 
 
-const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-gallery']
+const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-gallery', '/settings/social']
 
 function AppLayout() {
   const location = useLocation()
@@ -47,6 +48,7 @@ function AppLayout() {
             <Route path="/favoritelist" element={<ProtectedRoute><FavoriteList /></ProtectedRoute>} />
             <Route path="/promo-creator" element={<ProtectedRoute><PromoCreator /></ProtectedRoute>} />
             <Route path="/promo-gallery" element={<ProtectedRoute><PromoGallery /></ProtectedRoute>} />
+            <Route path="/settings/social" element={<ProtectedRoute><SocialConnect /></ProtectedRoute>} />
           </Routes>
         </div>
         <ToastContainer />

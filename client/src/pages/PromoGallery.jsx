@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaStar, FaRegStar } from 'react-icons/fa';
+import { FaStar, FaRegStar, FaInstagram } from 'react-icons/fa';
 import { RiDeleteBinLine } from "react-icons/ri";
 import { FiDownload } from "react-icons/fi";
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import PublishModal from '../components/PublishModal';
 
 const PromoGallery = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -11,6 +12,7 @@ const PromoGallery = () => {
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activePublishPost, setActivePublishPost] = useState(null);
 
   useEffect(() => {
     const fetchPromos = async () => {
@@ -149,6 +151,14 @@ const PromoGallery = () => {
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
+                    onClick={() => setActivePublishPost(promo)}
+                    className="text-gray-600 hover:text-pink-600 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                    title="Share to Instagram"
+                  >
+                    <FaInstagram size={16} />
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
                     className="text-gray-600 hover:text-red-500 hover:scale-110 active:scale-95 transition-all cursor-pointer"
                     onClick={() => handleDelete(promo.id)}
                     title="Delete Poster"
@@ -178,6 +188,13 @@ const PromoGallery = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {activePublishPost && (
+        <PublishModal 
+          post={activePublishPost} 
+          onClose={() => setActivePublishPost(null)} 
+        />
       )}
     </div>
   );

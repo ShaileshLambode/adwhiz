@@ -53,6 +53,8 @@ graph TD
   * **Zone 4 (Marketing Features Bar)**: 4-column customizable badges. Dynamic font scaling (9px-11px) ensures text readability.
   * **Zone 5 (Product Categories Showcase)**: Product category names and uploaded product image assets.
   * **Zone 6 (Footer Strip)**: Rich, dark-colored anchoring bar with 4 customizable info columns.
+* **Direct Instagram Publishing**: OAuth 2.0 flow to link Instagram Professional (Business or Creator) accounts. Captions can be customized dynamically and published directly to user feeds with automated token-refresh monitoring.
+* **Daily Token Refresher**: Background daily cron job checks for expiring Instagram access tokens and requests refreshed 60-day tokens.
 * **Full Creator Wizard UI**: Decoupled wizard step cards for editing every zone (including the previously missing Zone 4 marketing features).
 * **Contrast-Adaptive Layouts**: Server-side luminance checking adapts text colors to keep copy readable over light background tints.
 * **XML Escaping & Capitalization Safety**: Enforces secure rendering of special characters (like `&`) by capitalizing prior to XML escaping to prevent entity corruption.
@@ -66,8 +68,8 @@ graph TD
 ## 🛠️ Tech Stack
 
 * **Frontend**: React 19, Vite, Tailwind CSS v4, Redux Toolkit, Framer Motion, Axios, React Select, React Toastify.
-* **Backend**: Node.js, Express, Mongoose (MongoDB), Sharp, Multer, Axios, JsonWebToken, Nodemailer.
-* **Third-Party APIs**: Cloudinary (Image Hosting), Recraft AI (Generative Imagery), Google OAuth 2.0 (Identity).
+* **Backend**: Node.js, Express, Mongoose (MongoDB), Sharp, Multer, Axios, JsonWebToken, Nodemailer, Node-cron.
+* **Third-Party APIs**: Cloudinary (Image Hosting), Recraft AI (Generative Imagery), Google OAuth 2.0 (Identity), Meta Graph API / Instagram Professional Login.
 
 ---
 
@@ -77,18 +79,19 @@ graph TD
 adwhiz/
 ├── client/                 # React Frontend (Vite)
 │   ├── src/
-│   │   ├── components/     # Reusable UI elements (SideBar, NavBar, Modals)
-│   │   ├── pages/          # Page components (Home, Login, Signup, GeneratedContent)
+│   │   ├── components/     # Reusable UI elements (SideBar, NavBar, PublishModal)
+│   │   ├── pages/          # Pages (Home, Login, Signup, GeneratedContent, SocialConnect)
 │   │   ├── hooks/          # Custom hooks (e.g. useScreenSize)
 │   │   └── App.jsx         # App router and layout
 │   ├── package.json
 │   └── vite.config.js
 ├── server/                 # Express Backend (Node.js)
 │   ├── config/             # DB Connection Config
-│   ├── controllers/        # Express Controllers (Post, Logo, User)
+│   ├── controllers/        # Express Controllers (Post, Logo, User, SocialController)
 │   ├── middleware/         # Auth & Multer file upload handlers
-│   ├── models/             # Mongoose Schemas (User, Logo, Post)
-│   ├── routes/             # REST Endpoints
+│   ├── models/             # Mongoose Schemas (User, Logo, Post, SocialAccount)
+│   ├── routes/             # REST Endpoints (User, Logo, Post, SocialRoutes)
+│   ├── utils/              # Helper utilities (svgBuilder, tokenRefresher)
 │   ├── server.js           # Server Entry Point
 │   └── package.json
 └── Project Overview.md     # General project overview
@@ -129,6 +132,12 @@ CLOUDINARY_API_SECRET=your_api_secret
 # AI API Keys
 RECRAFT_API_KEY=your_recraft_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Instagram / Meta Social Publishing Integration
+INSTAGRAM_APP_ID=your_instagram_app_id_here
+INSTAGRAM_APP_SECRET=your_instagram_app_secret_here
+INSTAGRAM_REDIRECT_URI=http://localhost:4000/api/social/instagram/callback
+CLIENT_URL=http://localhost:5173
 ```
 
 Create a `.env` file in the `client` directory:
@@ -173,6 +182,11 @@ The client will start at `http://localhost:5173`. Open this URL in your web brow
 | `/api/post/listpost` | `GET` | JWT Required | Retrieve generated post history |
 | `/api/post/download/:id` | `GET` | JWT Required | Download the final composite image |
 | `/api/post/favoritetoggle/:id` | `PATCH` | JWT Required | Favorite/unfavorite a post |
+| `/api/social/instagram/auth-url` | `GET` | JWT Required | Fetch Meta OAuth redirection URL |
+| `/api/social/instagram/callback` | `GET` | Public | OAuth callback route (exchanges auth code for access tokens) |
+| `/api/social/account` | `GET` | JWT Required | Fetch currently connected Instagram account metadata |
+| `/api/social/disconnect` | `DELETE` | JWT Required | Disconnect connected Instagram account |
+| `/api/social/publish/instagram` | `POST` | JWT Required | Publish a generated poster and caption to the user's feed |
 
 ---
 
