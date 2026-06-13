@@ -20,6 +20,13 @@ const {
 } = require("../utils/svgBuilder");
 const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
 const { getDefaultFestivalPalette } = require("../utils/festivalPalettes");
+const {
+  renderInfographic,
+  renderFullscreenHero,
+  renderCenteredCard,
+  renderSplitBold,
+  renderStoryBanner
+} = require("../utils/layoutRenderers");
 
 
 // ─── Logo background removal (unchanged — works fine) ────────────────────────
@@ -98,8 +105,15 @@ async function extractLogoColors(logoBuffer) {
 }
 
 // ─── Core generation logic (composite vertical pipeline) ───────────────────
-async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette }) {
-  // 1. Build Recraft style and payload
+async function runGeneration({ template, logoDoc, overrides, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette, layoutType = 'infographic' }) {
+  // 1. Poster layout allocations
+  const [W, H] = parseSize(size);
+  const zones = calculateZoneHeights(H);
+
+  const panelW_left = Math.floor(W * 0.46);
+  const panelW_right = W - panelW_left;
+
+  // 2. Build Recraft style and payload
   const VALID_STYLES = {
     'realistic_image':                    'digital_illustration',
     'digital_illustration':               'digital_illustration',
@@ -125,57 +139,57 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   // Priority: GPT-provided > generic fallback
   const palette = (festivalPalette && festivalPalette.panelBg) ? festivalPalette : getDefaultFestivalPalette();
 
-  const recraftPayload = {
-    prompt: recraftScenePrompt || buildPrompt(template),
-    model: 'recraftv3',
-    style: recraftStyle,
-    size: '1024x1536', // Use portrait hero image for best cropping
-    n: 1,
-    response_format: 'url',
-    controls: {
-      colors: recraftColors
-        .filter(hex => hex && hex.trim())
-        .map(hex => hexToRgb(hex))
-    }
-  };
+  // 3. Call Recraft API if not centered_card layout
+  let heroSceneResizedBuffer = null;
+  if (layoutType !== 'centered_card') {
+    const recraftPayload = {
+      prompt: recraftScenePrompt || buildPrompt(template),
+      model: 'recraftv3',
+      style: recraftStyle,
+      size: '1024x1536', // Use portrait hero image for best cropping
+      n: 1,
+      response_format: 'url',
+      controls: {
+        colors: recraftColors
+          .filter(hex => hex && hex.trim())
+          .map(hex => hexToRgb(hex))
+      }
+    };
 
-  console.log('[Promo] Recraft hero scene payload:', JSON.stringify(recraftPayload, null, 2));
+    console.log('[Promo] Recraft hero scene payload:', JSON.stringify(recraftPayload, null, 2));
 
-  // 2. Call Recraft API
-  const recraftResponse = await axios.post(
-    'https://external.api.recraft.ai/v1/images/generations',
-    recraftPayload,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.RECRAFT_API_KEY}`,
-      },
-    }
-  );
+    const recraftResponse = await axios.post(
+      'https://external.api.recraft.ai/v1/images/generations',
+      recraftPayload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.RECRAFT_API_KEY}`,
+        },
+      }
+    );
 
-  const generatedImageUrl = recraftResponse.data.data[0].url;
-  console.log('[Promo] Recraft image URL:', generatedImageUrl);
+    const generatedImageUrl = recraftResponse.data.data[0].url;
+    console.log('[Promo] Recraft image URL:', generatedImageUrl);
 
-  // 3. Download base image
-  const heroSceneBaseBuffer = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
+    const heroSceneBaseBuffer = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
-  // 4. Poster layout allocations
-  const [W, H] = parseSize(size);
-  const zones = calculateZoneHeights(H);
+    // Crop/Resize Recraft illustration to fill the right hero panel
+    heroSceneResizedBuffer = await sharp(heroSceneBaseBuffer)
+      .resize({
+        width: panelW_right,
+        height: zones.z2,
+        fit: 'cover',
+        position: 'center'
+      })
+      .toBuffer();
+  }
 
-  const panelW_left = Math.floor(W * 0.46);
-  const panelW_right = W - panelW_left;
-
-  const quoteBoxW = Math.floor(panelW_right * 0.45);
-  const quoteBoxH = Math.floor(zones.z2 * 0.78);      // slightly shorter so floating icon fits
-  const quoteBoxX = panelW_left + Math.floor(panelW_right * 0.50);
-  // Pull quoteBoxY up by 20px so the floating icon above the box is visible within z2
-  const quoteBoxY = zones.z1 + Math.floor(zones.z2 * 0.08);
-
-  // 5. Logo and hero background resize
+  // 4. Logo processing
   const processedLogoBuffer = await removeLogoBackground(logoBuffer);
   // Scale logo height to 65% of header height
-  const targetLogoH = Math.floor(zones.z1 * 0.65);
+  const headerHeight = layoutType === 'story_banner' ? Math.floor(H * 0.08) : zones.z1;
+  const targetLogoH = Math.floor(headerHeight * 0.65);
   const resizedLogoBuffer = await sharp(processedLogoBuffer)
     .resize({ height: targetLogoH })
     .toBuffer();
@@ -183,91 +197,63 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   const logoMetadata = await sharp(resizedLogoBuffer).metadata();
   const logoH = logoMetadata.height;
 
-  // Crop/Resize Recraft illustration to fill the right hero panel
-  const heroSceneResizedBuffer = await sharp(heroSceneBaseBuffer)
-    .resize({
-      width: panelW_right,
-      height: zones.z2,
-      fit: 'cover',
-      position: 'center'
-    })
-    .toBuffer();
+  // 5. Select layout renderer
+  const layoutParams = {
+    W, H, zones, palette, overrides, logoDoc,
+    heroSceneResizedBuffer, resizedLogoBuffer, logoH
+  };
 
-  // 6. Generate SVG buffers for each zone using festival palette
-  const z1Svg = buildZone1Header({ website: logoDoc.website || '', email: logoDoc.email || '' }, W, zones.z1, palette);
-  const z2LeftSvg = buildZone2Left(overrides.heroContent, panelW_left, zones.z2, palette, template.occasion);
-  const z2RightBoxSvg = buildZone2Right_QuoteBox(overrides.heroContent.rightBoxQuote, quoteBoxW, quoteBoxH, palette, template.occasion);
-  const z3Svg = buildZone3ValuesRow(overrides.valuesRow, W, zones.z3, palette);
-  const z4Svg = buildZone4FeaturesBar(overrides.featuresBar, W, zones.z4, palette);
-  const z5Svg = buildZone5ProductLabels(overrides.productCategories, W, zones.z5, palette);
-  const z6Svg = buildZone6FooterStrip(overrides.footerColumns, W, zones.z6, palette);
-
-  // 7. Composite in array order
-  let currentY = 0;
-  const composites = [];
-
-  // Zone 1 — Header Bar
-  composites.push({ input: z1Svg, top: currentY, left: 0 });
-  currentY += zones.z1;
-
-  // Zone 2 — Hero Right background scene (underneath the overlay box)
-  composites.push({ input: heroSceneResizedBuffer, top: currentY, left: panelW_left });
-
-  // Zone 2 — Hero Left dark panel
-  composites.push({ input: z2LeftSvg, top: currentY, left: 0 });
-
-  // Zone 2 — Right quote box overlay
-  composites.push({ input: z2RightBoxSvg, top: quoteBoxY, left: quoteBoxX });
-  currentY += zones.z2;
-
-  // Zone 3 — Values Row
-  composites.push({ input: z3Svg, top: currentY, left: 0 });
-  currentY += zones.z3;
-
-  // Zone 4 — Features Bar
-  composites.push({ input: z4Svg, top: currentY, left: 0 });
-  currentY += zones.z4;
-
-  // Zone 5 — Product Categories
-  const currentY_z5 = currentY;
-  composites.push({ input: z5Svg, top: currentY_z5, left: 0 });
-  currentY += zones.z5;
-
-  // Zone 6 — Footer Strip
-  composites.push({ input: z6Svg, top: currentY, left: 0 });
-
-  // 8. Product image compositing
-  const productComposites = [];
-  if (overrides.productCategories && overrides.productCategories.length > 0) {
-    const N = overrides.productCategories.length;
-    const colW = Math.floor(W / N);
-    const imgSize = Math.min(Math.floor(zones.z5 * 0.65), colW - 8); // max size fits in cell
-    const imgY = currentY_z5 + Math.floor(zones.z5 * 0.08); // top padding
-
-    for (let i = 0; i < N; i++) {
-      const prod = overrides.productCategories[i];
-      if (!prod || !prod.imageUrl) continue;
-
-      try {
-        const productImgBuffer = await axios
-          .get(prod.imageUrl, { responseType: 'arraybuffer', timeout: 8000 })
-          .then(r => Buffer.from(r.data));
-
-        const resizedProduct = await sharp(productImgBuffer)
-          .resize({ width: imgSize, height: imgSize, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .png()
-          .toBuffer();
-
-        const imgX = i * colW + Math.floor((colW - imgSize) / 2);
-        productComposites.push({ input: resizedProduct, top: imgY, left: imgX });
-      } catch (err) {
-        console.warn(`Product image ${i} failed to load:`, err.message);
-        // Silently skip — name label still shows from SVG
-      }
-    }
+  let composites;
+  switch (layoutType) {
+    case 'fullscreen_hero':
+      composites = await renderFullscreenHero(layoutParams);
+      break;
+    case 'centered_card':
+      composites = await renderCenteredCard(layoutParams);
+      break;
+    case 'split_bold':
+      composites = await renderSplitBold(layoutParams);
+      break;
+    case 'story_banner':
+      composites = await renderStoryBanner(layoutParams);
+      break;
+    default:
+      composites = await renderInfographic(layoutParams);
   }
 
-  composites.push(...productComposites);
+  // 6. Product image compositing (only for layouts that have Zone 5: infographic)
+  if (layoutType === 'infographic') {
+    const productComposites = [];
+    if (overrides.productCategories && overrides.productCategories.length > 0) {
+      const N = overrides.productCategories.length;
+      const colW = Math.floor(W / N);
+      const imgSize = Math.min(Math.floor(zones.z5 * 0.65), colW - 8); // max size fits in cell
+      const currentY_z5 = zones.z1 + zones.z2 + zones.z3 + zones.z4;
+      const imgY = currentY_z5 + Math.floor(zones.z5 * 0.08); // top padding
+
+      for (let i = 0; i < N; i++) {
+        const prod = overrides.productCategories[i];
+        if (!prod || !prod.imageUrl) continue;
+
+        try {
+          const productImgBuffer = await axios
+            .get(prod.imageUrl, { responseType: 'arraybuffer', timeout: 8000 })
+            .then(r => Buffer.from(r.data));
+
+          const resizedProduct = await sharp(productImgBuffer)
+            .resize({ width: imgSize, height: imgSize, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .png()
+            .toBuffer();
+
+          const imgX = i * colW + Math.floor((colW - imgSize) / 2);
+          productComposites.push({ input: resizedProduct, top: imgY, left: imgX });
+        } catch (err) {
+          console.warn(`Product image ${i} failed to load:`, err.message);
+        }
+      }
+    }
+    composites.push(...productComposites);
+  }
 
   // Brand Logo top-left centered vertically
   const logoTop = Math.floor((zones.z1 - logoH) / 2);
@@ -304,7 +290,7 @@ exports.listTemplates = async (req, res) => {
 
 exports.generatePromo = async (req, res) => {
   try {
-    const { templateId, logoId, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette } = req.body;
+    const { templateId, logoId, size, stylePreset, aiSuggestedColors, recraftScenePrompt, festivalPalette, layoutType } = req.body;
     const userId = req.user.id;
 
     if (!logoId) {
@@ -345,7 +331,8 @@ exports.generatePromo = async (req, res) => {
       stylePreset,
       aiSuggestedColors,
       recraftScenePrompt,
-      festivalPalette
+      festivalPalette,
+      layoutType
     });
 
     // Upload to Cloudinary
@@ -363,6 +350,7 @@ exports.generatePromo = async (req, res) => {
           template: template._id,
           occasion: req.body.occasion || template.occasion,
           size: size || template.aspectRatio || '1024x1024',
+          layoutType: layoutType || 'infographic',
           userOverrides: overrides,
           generatedImageUrl: result.secure_url,
         });
@@ -394,7 +382,8 @@ exports.regeneratePromo = async (req, res) => {
       stylePreset,
       aiSuggestedColors,
       recraftScenePrompt,
-      festivalPalette
+      festivalPalette,
+      layoutType = existingPost.layoutType
     } = req.body;
 
     let template;
@@ -431,7 +420,8 @@ exports.regeneratePromo = async (req, res) => {
       stylePreset,
       aiSuggestedColors,
       recraftScenePrompt,
-      festivalPalette
+      festivalPalette,
+      layoutType
     });
 
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -450,6 +440,7 @@ exports.regeneratePromo = async (req, res) => {
         existingPost.logo = logoId;
         existingPost.occasion = req.body.occasion || template.occasion;
         existingPost.size = size || template.aspectRatio;
+        existingPost.layoutType = layoutType;
         existingPost.userOverrides = overrides;
         existingPost.generatedImageUrl = result.secure_url;
         await existingPost.save();

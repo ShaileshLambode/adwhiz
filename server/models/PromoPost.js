@@ -23,6 +23,10 @@ const promoPostSchema = new mongoose.Schema({
     type: String,
     default: "1024x1024"
   },
+  layoutType: {
+    type: String,
+    default: "infographic"
+  },
   textInputs: [{
     id: String,
     value: String

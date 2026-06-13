@@ -172,11 +172,14 @@ const PromoGallery = () => {
               <div className="p-4 flex-1 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-gray-800 line-clamp-1">{promo.template?.name || "Festival Banner"}</h3>
-                  <div className="flex items-center gap-1.5 mt-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider">
                       {promo.occasion?.replace('_', ' ')}
                     </span>
                     <span className="text-xs text-gray-400 font-medium">{promo.size}</span>
+                    <span className="inline-block bg-red-50 text-[#FF6666] text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-red-100">
+                      {(promo.layoutType || 'infographic').replace('_', ' ')}
+                    </span>
                   </div>
                 </div>
                 

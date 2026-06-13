@@ -5,6 +5,49 @@ import { useNavigate } from 'react-router-dom';
 import { FaInstagram } from 'react-icons/fa';
 import PublishModal from '../components/PublishModal';
 
+const LAYOUT_OPTIONS = [
+  {
+    id: 'infographic',
+    name: 'Infographic',
+    description: 'Detailed info poster with product showcase and features',
+    icon: '📊',
+    bestFor: 'Detailed marketing, product showcases',
+    defaultSize: '1024x1024',
+  },
+  {
+    id: 'fullscreen_hero',
+    name: 'Fullscreen Hero',
+    description: 'Bold AI art fills the entire poster, text on gradient overlay',
+    icon: '🖼',
+    bestFor: 'Eye-catching announcements, colorful festivals',
+    defaultSize: '1024x1024',
+  },
+  {
+    id: 'centered_card',
+    name: 'Centered Card',
+    description: 'Clean typographic poster with decorative borders, no AI image',
+    icon: '🃏',
+    bestFor: 'Elegant brands, Eid, formal occasions',
+    defaultSize: '1024x1024',
+  },
+  {
+    id: 'split_bold',
+    name: 'Split Bold',
+    description: 'Bold text on left, AI art on right — high contrast',
+    icon: '⬛',
+    bestFor: 'Product launches, Independence Day, strong brands',
+    defaultSize: '1024x1024',
+  },
+  {
+    id: 'story_banner',
+    name: 'Story Banner',
+    description: 'Portrait format optimized for Instagram Stories and Status',
+    icon: '📱',
+    bestFor: 'Instagram Stories, Reels covers, WhatsApp Status',
+    defaultSize: '1024x1820',
+  },
+];
+
 const PromoCreator = () => {
   const navigate = useNavigate();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -12,11 +55,13 @@ const PromoCreator = () => {
   const [activePublishPost, setActivePublishPost] = useState(null);
 
   // Wizard Steps:
+  // 0: Layout Picker
   // 1: Brand & Occasion Selection + AI Fill
   // 2: Review Content
   // 3: Style & Size Preset
   // 4: Preview & Generate
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [layoutType, setLayoutType] = useState('infographic');
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [templates, setTemplates] = useState([]);
   const [businesses, setBusinesses] = useState([]);
@@ -146,6 +191,14 @@ const PromoCreator = () => {
     );
 
     setAspectRatio(template.aspectRatio || "1024x1024");
+  };
+
+  const handleSelectLayout = (layoutId) => {
+    setLayoutType(layoutId);
+    const option = LAYOUT_OPTIONS.find(l => l.id === layoutId);
+    if (option) {
+      setAspectRatio(option.defaultSize);
+    }
   };
 
   // Automatically select the default template once templates are loaded
@@ -298,6 +351,7 @@ const PromoCreator = () => {
         logoId: selectedBusiness._id,
         size: aspectRatio,
         stylePreset: stylePreset,
+        layoutType: layoutType,
         heroContent,
         valuesRow,
         featuresBar,
@@ -398,7 +452,7 @@ const PromoCreator = () => {
           
           {/* Progress bar */}
           <div className="flex items-center justify-between mt-8 max-w-lg mx-auto">
-            {[1, 2, 3, 4].map((step) => (
+            {[0, 1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center flex-1 last:flex-none">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 transition-all duration-300 ${
                   currentStep >= step 
@@ -416,6 +470,7 @@ const PromoCreator = () => {
             ))}
           </div>
           <div className="flex justify-between max-w-lg mx-auto text-xs text-red-100 mt-2 px-1">
+            <span>Layout</span>
             <span>Occasion & Brand</span>
             <span>Review Content</span>
             <span>Style & Size</span>
@@ -425,6 +480,43 @@ const PromoCreator = () => {
 
         <div className="p-8">
           
+          {/* STEP 0: Layout Picker */}
+          {currentStep === 0 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Choose a Layout Style</h2>
+                <p className="text-sm text-gray-500 mb-6">Select how your festival poster is structured. Content will adapt to the layout style you choose.</p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {LAYOUT_OPTIONS.map((layout) => (
+                    <div
+                      key={layout.id}
+                      onClick={() => handleSelectLayout(layout.id)}
+                      className={`cursor-pointer rounded-2xl p-5 border-2 flex flex-col justify-between transition-all duration-200 ${
+                        layoutType === layout.id
+                          ? "border-[#FF6666] bg-red-50/30 shadow-md scale-[1.02]"
+                          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                      }`}
+                    >
+                      <div>
+                        <div className="text-4xl mb-3 flex items-center justify-center w-14 h-14 bg-gray-50 rounded-2xl border border-gray-100">
+                          {layout.icon}
+                        </div>
+                        <h3 className="font-extrabold text-gray-800 text-lg leading-snug">{layout.name}</h3>
+                        <p className="text-xs text-gray-500 mt-2 leading-relaxed">{layout.description}</p>
+                      </div>
+                      
+                      <div className="mt-4 pt-3 border-t border-gray-100 text-[11px]">
+                        <span className="text-gray-400 font-semibold block uppercase tracking-wider">Best for:</span>
+                        <span className="text-gray-700 font-medium">{layout.bestFor}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* STEP 1: Occasion & Brand Selection */}
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -773,7 +865,7 @@ const PromoCreator = () => {
                 <div>
                   <h3 className="block text-sm font-semibold text-gray-700 mb-3">Aspect Ratio / Size</h3>
                   <div className="grid grid-cols-2 gap-3">
-                    {["1024x1024", "1024x1365", "1365x1024", "1024x1536"].map((sz) => (
+                    {["1024x1024", "1024x1365", "1365x1024", "1024x1536", "1024x1820"].map((sz) => (
                       <button
                         key={sz}
                         type="button"
@@ -787,7 +879,8 @@ const PromoCreator = () => {
                         {sz === "1024x1024" && "Square (1:1)"}
                         {sz === "1024x1365" && "Portrait (4:5)"}
                         {sz === "1365x1024" && "Landscape (5:4)"}
-                        {sz === "1024x1536" && "Story (2:3)"}
+                        {sz === "1024x1536" && "Portrait (2:3)"}
+                        {sz === "1024x1820" && "Story (9:16)"}
                         <span className="block text-xs font-normal text-gray-400 mt-0.5">({sz} px)</span>
                       </button>
                     ))}
@@ -795,25 +888,35 @@ const PromoCreator = () => {
                 </div>
 
                 {/* Style Presets */}
-                <div>
-                  <h3 className="block text-sm font-semibold text-gray-700 mb-3">Recraft V3 Render Style</h3>
-                  <div className="space-y-3">
-                    {stylePresets.map((preset) => (
-                      <div 
-                        key={preset.value}
-                        onClick={() => setStylePreset(preset.value)}
-                        className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all ${
-                          stylePreset === preset.value 
-                            ? "border-[#FF6666] bg-red-50/50" 
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <h4 className={`text-sm font-bold ${stylePreset === preset.value ? "text-[#FF6666]" : "text-gray-800"}`}>{preset.label}</h4>
-                        <p className="text-xs text-gray-400 mt-0.5">{preset.description}</p>
-                      </div>
-                    ))}
+                {layoutType !== 'centered_card' ? (
+                  <div>
+                    <h3 className="block text-sm font-semibold text-gray-700 mb-3">Recraft V3 Render Style</h3>
+                    <div className="space-y-3">
+                      {stylePresets.map((preset) => (
+                        <div 
+                          key={preset.value}
+                          onClick={() => setStylePreset(preset.value)}
+                          className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all ${
+                            stylePreset === preset.value 
+                              ? "border-[#FF6666] bg-red-50/50" 
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <h4 className={`text-sm font-bold ${stylePreset === preset.value ? "text-[#FF6666]" : "text-gray-800"}`}>{preset.label}</h4>
+                          <p className="text-xs text-gray-400 mt-0.5">{preset.description}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-center">
+                    <span className="text-4xl mb-3">🃏</span>
+                    <h4 className="text-sm font-bold text-gray-800">Clean Typographic Layout</h4>
+                    <p className="text-xs text-gray-400 mt-2 max-w-xs leading-relaxed">
+                      Centered Card layout is built purely using elegant vector graphics, borders, and typography. No AI illustration background is required or generated.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 const esc = (s) => {
   if (typeof s !== 'string') return '';
-  return s.replace(/&/g, '&amp;')
+  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+          .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
@@ -588,6 +589,420 @@ exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
 
   return Buffer.from(`<svg width="${W}" height="${H6}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H6}" fill="${footerBg}"/>
+    ${content}
+  </svg>`);
+};
+
+exports.buildFullscreenOverlay = (heroContent, W, H, palette = {}) => {
+  const panelBg    = palette.panelBg    || '#1A1A2E';
+  const headline   = heroContent.headline   || '';
+  const subheading = heroContent.subheading || '';
+  const body       = heroContent.bodyMessage || '';
+  const slogan     = heroContent.closingSlogan || '';
+
+  const headlineSize    = Math.floor(H * 0.18);
+  const subheadingSize  = Math.floor(H * 0.08);
+  const bodySize        = Math.floor(H * 0.06);
+  const sloganSize      = Math.floor(H * 0.065);
+  const paddingX        = Math.floor(W * 0.06);
+
+  const bodyChars = Math.floor((W * 0.88) / (bodySize * 0.58));
+  const bodyLines = wrapText(body, bodyChars);
+  let bodyContent = '';
+  bodyLines.slice(0, 3).forEach((line, idx) => {
+    bodyContent += `<text x="${paddingX}" y="${Math.floor(H * 0.63) + idx * bodySize * 1.45}"
+      font-family="Arial, sans-serif" font-size="${bodySize}"
+      fill="${palette.bodyTextColor || '#FFFFFF'}" opacity="0.88">${esc(line)}</text>`;
+  });
+
+  return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="overlay" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="${panelBg}" stop-opacity="0"/>
+        <stop offset="35%"  stop-color="${panelBg}" stop-opacity="0.88"/>
+        <stop offset="100%" stop-color="${panelBg}" stop-opacity="0.97"/>
+      </linearGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#overlay)"/>
+    <text x="${paddingX}" y="${Math.floor(H * 0.30)}"
+      font-family="Arial, sans-serif" font-size="${headlineSize}" font-weight="900"
+      fill="${palette.headlineColor || '#FFD700'}">${esc(headline.toUpperCase())}</text>
+    <text x="${paddingX}" y="${Math.floor(H * 0.50)}"
+      font-family="Arial, sans-serif" font-size="${subheadingSize}" font-weight="700"
+      fill="${palette.subheadingColor || '#FFA500'}" letter-spacing="2">${esc(subheading.toUpperCase())}</text>
+    ${bodyContent}
+    <text x="${paddingX}" y="${Math.floor(H * 0.88)}"
+      font-family="Arial, sans-serif" font-size="${sloganSize}" font-style="italic" font-weight="700"
+      fill="${palette.sloganColor || palette.headlineColor || '#FFD700'}">${esc(slogan)}</text>
+  </svg>`);
+};
+
+exports.buildCenteredCard = (overrides, W, H, palette = {}) => {
+  const bg         = palette.zoneBgTint || '#FFF8F0';
+  const borderCol  = palette.iconCircleColor || '#FFD700';
+
+  const headline      = overrides.heroContent?.headline      || '';
+  const subheading    = overrides.heroContent?.subheading    || '';
+  const body          = overrides.heroContent?.bodyMessage   || '';
+  const slogan        = overrides.heroContent?.closingSlogan || '';
+  const quote         = overrides.heroContent?.rightBoxQuote || '';
+  const values        = overrides.valuesRow || [];
+  const features      = overrides.featuresBar || [];
+
+  const headlineSize   = Math.floor(W * 0.065);
+  const subheadSize    = Math.floor(W * 0.028);
+  const bodySize       = Math.floor(W * 0.020);
+  const midX           = W / 2;
+
+  let y = Math.floor(H * 0.06);
+  let content = '';
+
+  // Decorative outer border
+  content += `<rect x="12" y="0" width="${W-24}" height="${H-1}" rx="0" fill="none"
+    stroke="${borderCol}" stroke-width="2" opacity="0.3"/>`;
+
+  // Headline
+  const hlChars = Math.floor((W * 0.88) / (headlineSize * 0.62));
+  const hlLines = wrapText(headline.toUpperCase(), hlChars);
+  hlLines.forEach(line => {
+    content += `<text x="${midX}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${headlineSize}" font-weight="900"
+      fill="${palette.headlineColor || '#333333'}">${esc(line)}</text>`;
+    y += headlineSize * 1.1;
+  });
+  y += Math.floor(H * 0.02);
+
+  // Diamond divider
+  content += `<line x1="${midX-60}" y1="${y}" x2="${midX-8}" y2="${y}" stroke="${borderCol}" stroke-width="1.5" opacity="0.7"/>
+  <polygon points="${midX},${y-5} ${midX+7},${y} ${midX},${y+5} ${midX-7},${y}" fill="${borderCol}" opacity="0.8"/>
+  <line x1="${midX+8}" y1="${y}" x2="${midX+60}" y2="${y}" stroke="${borderCol}" stroke-width="1.5" opacity="0.7"/>`;
+  y += Math.floor(H * 0.04);
+
+  // Subheading
+  content += `<text x="${midX}" y="${y}"
+    text-anchor="middle" font-family="Arial, sans-serif"
+    font-size="${subheadSize}" font-weight="700" letter-spacing="2"
+    fill="${palette.subheadingColor || '#666666'}">${esc(subheading.toUpperCase())}</text>`;
+  y += Math.floor(H * 0.06);
+
+  // Body text (centered)
+  const bodyChars = Math.floor((W * 0.72) / (bodySize * 0.58));
+  const bodyLines = wrapText(body, bodyChars);
+  bodyLines.forEach(line => {
+    content += `<text x="${midX}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${bodySize}" fill="${palette.bodyTextColor || '#444444'}" opacity="0.9">${esc(line)}</text>`;
+    y += bodySize * 1.6;
+  });
+  y += Math.floor(H * 0.025);
+
+  // Slogan
+  content += `<text x="${midX}" y="${y}"
+    text-anchor="middle" font-family="Arial, sans-serif"
+    font-size="${Math.floor(bodySize * 1.2)}" font-style="italic" font-weight="700"
+    fill="${palette.sloganColor || palette.headlineColor || '#333333'}">${esc(slogan)}</text>`;
+  y += Math.floor(H * 0.05);
+
+  // Quote box (small, centered)
+  const qBoxW = Math.floor(W * 0.72);
+  const qBoxX = Math.floor((W - qBoxW) / 2);
+  const qBoxH = Math.floor(H * 0.12);
+  const qFont  = Math.floor(W * 0.016);
+  content += `<rect x="${qBoxX}" y="${y}" width="${qBoxW}" height="${qBoxH}" rx="8"
+    fill="none" stroke="${borderCol}" stroke-width="1.5" opacity="0.55"/>`;
+  const qLines = wrapText(quote, Math.floor((qBoxW - 24) / (qFont * 0.58)));
+  qLines.slice(0, 3).forEach((line, idx) => {
+    content += `<text x="${midX}" y="${y + 18 + idx * (qFont * 1.5)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${qFont}" font-style="italic" fill="#555555">${esc(line)}</text>`;
+  });
+  y += qBoxH + Math.floor(H * 0.025);
+
+  // Values row (inline with connecting line)
+  const colW = W / 3;
+  const vLabelSize = Math.floor(W * 0.013);
+  const vSubSize   = Math.floor(W * 0.009);
+  content += `<line x1="${Math.floor(W*0.1)}" y1="${y + Math.floor(H*0.025)}" x2="${Math.floor(W*0.9)}" y2="${y + Math.floor(H*0.025)}"
+    stroke="${borderCol}" stroke-width="1" opacity="0.3"/>`;
+  values.forEach((v, i) => {
+    const cx = i * colW + colW / 2;
+    content += `<circle cx="${cx}" cy="${y + Math.floor(H*0.025)}" r="14"
+      stroke="${palette.iconCircleColor || borderCol}" stroke-width="1.5" fill="${bg}"/>`;
+    content += `<text x="${cx}" y="${y + Math.floor(H*0.035)}"
+      text-anchor="middle" font-family="Arial, sans-serif" font-size="11"
+      fill="${palette.iconCircleColor || borderCol}">${esc(v.icon || '★')}</text>`;
+    content += `<text x="${cx}" y="${y + Math.floor(H*0.065)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${vLabelSize}" font-weight="800" fill="#1A1A1A">${esc(v.label || '').toUpperCase()}</text>`;
+    content += `<text x="${cx}" y="${y + Math.floor(H*0.082)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${vSubSize}" fill="#777777">${esc(v.sublabel || '')}</text>`;
+  });
+  y += Math.floor(H * 0.10);
+
+  // Features (inline badges)
+  const fColW = W / 4;
+  const fFont = Math.floor(W * 0.009);
+  features.forEach((f, i) => {
+    const fx = i * fColW + fColW / 2;
+    const fIcon = f.icon || '★';
+    content += `<text x="${fx}" y="${y + Math.floor(H*0.022)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="14" fill="${palette.featureBorderColor || borderCol}">${esc(fIcon)}</text>`;
+    const fLines = wrapText(f.text || '', Math.floor((fColW - 10) / (fFont * 0.58)));
+    fLines.slice(0, 2).forEach((line, idx) => {
+      content += `<text x="${fx}" y="${y + Math.floor(H*0.04) + idx * (fFont * 1.4)}"
+        text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="${fFont}" font-weight="700" fill="#333333">${esc(line).toUpperCase()}</text>`;
+    });
+  });
+
+  return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${bg}"/>
+    ${content}
+  </svg>`);
+};
+
+exports.buildSplitBoldLeft = (heroContent, panelW, panelH, palette = {}) => {
+  const bg = palette.panelBg || '#1A1A2E';
+  const padX = Math.floor(panelW * 0.08);
+  const headline   = heroContent?.headline   || '';
+  const subheading = heroContent?.subheading || '';
+  const body       = heroContent?.bodyMessage || '';
+  const slogan     = heroContent?.closingSlogan || '';
+  const safeW      = panelW - padX - Math.floor(panelW * 0.05);
+
+  const headlineSize   = Math.floor(panelH * 0.10);
+  const subheadingSize = Math.floor(panelH * 0.048);
+  const bodySize       = Math.floor(panelH * 0.038);
+  const sloganSize     = Math.floor(panelH * 0.046);
+
+  let y = Math.floor(panelH * 0.10) + headlineSize;
+  let content = '';
+
+  const hlChars  = Math.floor(safeW / (headlineSize * 0.62));
+  const hlLines  = wrapText(headline.toUpperCase(), hlChars);
+  hlLines.forEach((line, i) => {
+    content += `<text x="${padX}" y="${y + i * headlineSize * 1.05}"
+      text-anchor="start" font-family="Arial, sans-serif"
+      font-size="${headlineSize}" font-weight="900"
+      fill="${palette.headlineColor || '#FFD700'}">${esc(line)}</text>`;
+  });
+  y += hlLines.length * headlineSize * 1.05 + Math.floor(panelH * 0.02);
+
+  // Divider aligned to padX
+  const dEnd = padX + Math.floor(panelW * 0.55);
+  const dMid = padX + Math.floor((dEnd - padX) / 2);
+  content += `<line x1="${padX}" y1="${y}" x2="${dMid-8}" y2="${y}"
+    stroke="${palette.subheadingColor || '#FFA500'}" stroke-width="1.5" opacity="0.7"/>
+  <polygon points="${dMid},${y-5} ${dMid+7},${y} ${dMid},${y+5} ${dMid-7},${y}"
+    fill="${palette.subheadingColor || '#FFA500'}" opacity="0.8"/>
+  <line x1="${dMid+8}" y1="${y}" x2="${dEnd}" y2="${y}"
+    stroke="${palette.subheadingColor || '#FFA500'}" stroke-width="1.5" opacity="0.7"/>`;
+  y += Math.floor(panelH * 0.055);
+
+  const subChars = Math.floor(safeW / (subheadingSize * 0.62));
+  const subLines = wrapText(subheading.toUpperCase(), subChars);
+  subLines.forEach((line, i) => {
+    content += `<text x="${padX}" y="${y + i * subheadingSize * 1.3}"
+      text-anchor="start" font-family="Arial, sans-serif"
+      font-size="${subheadingSize}" font-weight="700" letter-spacing="1"
+      fill="${palette.subheadingColor || '#FFA500'}">${esc(line)}</text>`;
+  });
+  y += subLines.length * subheadingSize * 1.3 + Math.floor(panelH * 0.04);
+
+  const bodyChars = Math.floor(safeW / (bodySize * 0.58));
+  const bodyLines = wrapText(body, bodyChars);
+  bodyLines.forEach((line, i) => {
+    content += `<text x="${padX}" y="${y + i * bodySize * 1.65}"
+      text-anchor="start" font-family="Arial, sans-serif"
+      font-size="${bodySize}" fill="${palette.bodyTextColor || '#FFFFFF'}" opacity="0.90">${esc(line)}</text>`;
+  });
+  y += bodyLines.length * bodySize * 1.65 + 28;
+
+  const sloganChars = Math.floor(safeW / (sloganSize * 0.60));
+  const sloganLines = wrapText(slogan, sloganChars);
+  sloganLines.forEach((line, i) => {
+    content += `<text x="${padX}" y="${y + i * sloganSize * 1.35}"
+      text-anchor="start" font-family="Arial, sans-serif"
+      font-size="${sloganSize}" font-style="italic" font-weight="700"
+      fill="${palette.sloganColor || palette.headlineColor}">${esc(line)}</text>`;
+  });
+
+  return Buffer.from(`<svg width="${panelW}" height="${panelH}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${panelW}" height="${panelH}" fill="${bg}"/>
+    ${content}
+  </svg>`);
+};
+
+exports.buildStoryTextBlock = (heroContent, W, H, palette = {}) => {
+  const panelBg = palette.panelBg || '#1A1A2E';
+  const headlineColor = palette.headlineColor || '#FFD700';
+  const subheadingColor = palette.subheadingColor || '#FFA500';
+  const bodyTextColor = palette.bodyTextColor || '#FFFFFF';
+
+  const headline = heroContent.headline || '';
+  const subheading = heroContent.subheading || '';
+  const body = heroContent.bodyMessage || '';
+
+  const headlineSize = Math.floor(H * 0.18);
+  const subheadingSize = Math.floor(H * 0.09);
+  const bodySize = Math.floor(H * 0.07);
+
+  const midX = W / 2;
+  let y = Math.floor(H * 0.18);
+
+  let content = '';
+
+  // Headline
+  if (headline) {
+    content += `<text x="${midX}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif" font-size="${headlineSize}" font-weight="900"
+      fill="${headlineColor}">${esc(headline.toUpperCase())}</text>`;
+    y += Math.floor(headlineSize * 1.25);
+  }
+
+  // Subheading
+  if (subheading) {
+    content += `<text x="${midX}" y="${y}"
+      text-anchor="middle" font-family="Arial, sans-serif" font-size="${subheadingSize}" font-weight="750"
+      fill="${subheadingColor}" letter-spacing="1.5">${esc(subheading.toUpperCase())}</text>`;
+    y += Math.floor(subheadingSize * 1.4);
+  }
+
+  // Body message
+  if (body) {
+    const bodyChars = Math.floor((W * 0.85) / (bodySize * 0.58));
+    const lines = wrapText(body, bodyChars);
+    lines.forEach((line) => {
+      content += `<text x="${midX}" y="${y}"
+        text-anchor="middle" font-family="Arial, sans-serif" font-size="${bodySize}"
+        fill="${bodyTextColor}" opacity="0.9">${esc(line)}</text>`;
+      y += Math.floor(bodySize * 1.45);
+    });
+  }
+
+  return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${panelBg}"/>
+    ${content}
+  </svg>`);
+};
+
+exports.buildStoryValuesCompact = (values = [], W, H, palette = {}) => {
+  const zoneBgTint = palette.zoneBgTint || '#FFF8F0';
+  const iconCircleColor = palette.iconCircleColor || '#E07000';
+  const zoneTextColor = getZoneTextColor(palette);
+  const dividerColor = palette.featureBorderColor ? palette.featureBorderColor + '55' : '#DDDDDD';
+
+  const midY = H / 2;
+  const labelSize = Math.max(Math.floor(W * 0.024), 12);
+  const items = values.slice(0, 3);
+  const N = items.length;
+
+  let content = '';
+  if (N > 0) {
+    const colW = W / N;
+    items.forEach((item, i) => {
+      const cx = i * colW + colW / 2;
+      const icon = item.icon || '★';
+      const label = (item.label || '').toUpperCase();
+      
+      content += `<text x="${cx}" y="${midY + labelSize * 0.35}"
+        text-anchor="middle" font-family="Arial, sans-serif" font-size="${labelSize}" font-weight="800"
+        fill="${zoneTextColor}">
+        <tspan fill="${iconCircleColor}">${esc(icon)} </tspan>${esc(label)}
+      </text>`;
+
+      if (i < N - 1) {
+        content += `<line x1="${(i+1)*colW}" y1="${H*0.2}" x2="${(i+1)*colW}" y2="${H*0.8}"
+          stroke="${dividerColor}" stroke-width="1"/>`;
+      }
+    });
+  }
+
+  return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${zoneBgTint}"/>
+    <line x1="0" y1="0" x2="${W}" y2="0" stroke="${iconCircleColor}" stroke-width="2" opacity="0.5"/>
+    <line x1="0" y1="${H}" x2="${W}" y2="${H}" stroke="${dividerColor}" stroke-width="1" opacity="0.3"/>
+    ${content}
+  </svg>`);
+};
+
+exports.buildFooterTwoCol = (footerColumns = [], W, H, palette = {}) => {
+  const footerBg = palette.footerBg || '#16213E';
+  const footerAccent = palette.footerTextAccent || '#FFD700';
+
+  const colW = W / 2;
+  const leftPad = 24;
+  const iconW = 36;
+  const textXOffset = iconW + leftPad;
+  const availTextW = colW - textXOffset - 8;
+  const linesAreaH = Math.floor(H * 0.75);
+
+  const colA = footerColumns[0] || { icon: '★', lines: [], highlight: '' };
+  const colB = footerColumns.length > 1 ? footerColumns[footerColumns.length - 1] : { icon: '★', lines: [], highlight: '' };
+  const cols = [colA, colB];
+
+  let sharedFontSize = Math.floor(H * 0.11);
+  while (sharedFontSize >= 7) {
+    const charW = sharedFontSize * 0.58;
+    const maxChars = Math.floor(availTextW / charW);
+    const lineGap = sharedFontSize * 1.4;
+    let fits = true;
+    for (const col of cols) {
+      const allLines = [...(col.lines || []), col.highlight || ''].filter(Boolean);
+      const wrapped = allLines.flatMap(l => wrapText(l, maxChars));
+      if (wrapped.length * lineGap > linesAreaH) { fits = false; break; }
+    }
+    if (fits) break;
+    sharedFontSize -= 1;
+  }
+
+  const charW = sharedFontSize * 0.58;
+  const maxChars = Math.floor(availTextW / charW);
+  const lineGap = sharedFontSize * 1.4;
+
+  let content = '';
+  for (let i = 0; i < 2; i++) {
+    const col = cols[i];
+    const colX = i * colW;
+    const iconX = colX + leftPad;
+    const textX = colX + textXOffset;
+
+    content += `<text x="${iconX}" y="${H * 0.45}"
+      font-family="Arial, sans-serif"
+      font-size="${Math.floor(H * 0.16)}"
+      fill="${footerAccent}" opacity="0.9">${esc(col.icon || '★')}</text>`;
+
+    let textY = H * 0.22;
+
+    (col.lines || []).forEach(line => {
+      wrapText(line, maxChars).forEach(wl => {
+        content += `<text x="${textX}" y="${textY}"
+          font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="700"
+          fill="rgba(255,255,255,0.88)">${esc(wl.toUpperCase())}</text>`;
+        textY += lineGap;
+      });
+    });
+
+    if (col.highlight) {
+      wrapText(col.highlight, maxChars).forEach(wl => {
+        content += `<text x="${textX}" y="${textY}"
+          font-family="Arial, sans-serif" font-size="${sharedFontSize}" font-weight="900"
+          fill="${footerAccent}">${esc(wl.toUpperCase())}</text>`;
+        textY += lineGap;
+      });
+    }
+
+    if (i < 1) {
+      content += `<line x1="${colW}" y1="${H * 0.12}" x2="${colW}" y2="${H * 0.88}"
+        stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+    }
+  }
+
+  return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${footerBg}"/>
     ${content}
   </svg>`);
 };
