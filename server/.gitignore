@@ -1,0 +1,29 @@
+
+node_modules
+.env 
+
+# Mongo DB URL
+MONGO_URI 
+
+# JWT
+JWT_SECRET
+
+# Port
+PORT = "4000"
+
+# Google Client ID
+GOOGLE_CLIENT_ID 
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME 
+CLOUDINARY_API_KEY 
+CLOUDINARY_API_SECRET 
+
+# Gmail
+GMAIL_USER 
+GMAIL_PASS 
+
+# Open Ai
+OPENAI_API_KEY
+
+../.idea
