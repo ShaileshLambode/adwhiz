@@ -20,9 +20,10 @@ import FavoriteList from './pages/FavoriteList'
 import PromoCreator from './pages/PromoCreator'
 import PromoGallery from './pages/PromoGallery'
 import SocialConnect from './pages/SocialConnect'
+import PostTypeLauncher from './pages/PostTypeLauncher'
 
 
-const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-gallery', '/settings/social']
+const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-creator/festival', '/promo-gallery', '/settings/social']
 
 function AppLayout() {
   const location = useLocation()
@@ -46,7 +47,8 @@ function AppLayout() {
             <Route path="/generatedcontent" element={<ProtectedRoute><GeneratedContent /></ProtectedRoute>} />
             <Route path="/postReady" element={<ProtectedRoute><PostReady /></ProtectedRoute>} />
             <Route path="/favoritelist" element={<ProtectedRoute><FavoriteList /></ProtectedRoute>} />
-            <Route path="/promo-creator" element={<ProtectedRoute><PromoCreator /></ProtectedRoute>} />
+            <Route path="/promo-creator" element={<ProtectedRoute><PostTypeLauncher /></ProtectedRoute>} />
+            <Route path="/promo-creator/festival" element={<ProtectedRoute><PromoCreator /></ProtectedRoute>} />
             <Route path="/promo-gallery" element={<ProtectedRoute><PromoGallery /></ProtectedRoute>} />
             <Route path="/settings/social" element={<ProtectedRoute><SocialConnect /></ProtectedRoute>} />
           </Routes>

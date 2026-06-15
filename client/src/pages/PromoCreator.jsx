@@ -858,7 +858,7 @@ const PromoCreator = () => {
                         setAiGeneratedColors([]);
                         setAiScenePrompt('');
                         setFestivalPalette(null);
-                        setCurrentStep(1);
+                        navigate('/promo-creator');
                       }}
                       className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all cursor-pointer"
                     >
