@@ -141,25 +141,29 @@ exports.buildZone2Left = (data, panelW, panelH, palette = {}) => {
   const bodyTextColor   = palette.bodyTextColor    || '#FFFFFF';
   const sloganColor     = palette.sloganColor      || headlineColor;
 
+  const isPortraitOrStory = panelH > 500;
+
   // VISUAL HIERARCHY: headline is massive, subheading medium, body small
-  const headlineSize    = Math.floor(panelH * 0.100); // ~40px — safe
-  const subheadingSize  = Math.floor(panelH * 0.048); // ~20px — clearly smaller
-  const sloganSize      = Math.floor(panelH * 0.046); // ~19px — slightly larger than body
+  const rawHeadlineSize = Math.floor(panelH * 0.100);
+  const headlineSize    = Math.min(rawHeadlineSize, 54); // absolute cap to prevent wrap issues
+  const subheadingSize  = Math.min(Math.floor(panelH * 0.048), isPortraitOrStory ? 22 : 26);
+  const sloganSize      = Math.min(Math.floor(panelH * 0.046), isPortraitOrStory ? 20 : 24);
 
   const leftX = Math.floor(panelW * 0.08);
   const safeTextW = panelW - leftX - Math.floor(panelW * 0.14); // leave 14% for fade
 
   // Auto-scale body text size based on number of lines to prevent vertical overlap
-  let bodySize = Math.floor(panelH * 0.038); // ~16px
+  const maxBodySize = isPortraitOrStory ? 16 : 18;
+  let bodySize = Math.min(Math.floor(panelH * 0.038), maxBodySize);
   let bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
   let bodyLines = wrapText(bodyMessage, bodyChars);
   if (bodyLines.length > 5) {
-    bodySize = Math.floor(panelH * 0.034); // ~14px
+    bodySize = Math.min(Math.floor(panelH * 0.034), maxBodySize - 2);
     bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
     bodyLines = wrapText(bodyMessage, bodyChars);
   }
   if (bodyLines.length > 7) {
-    bodySize = Math.floor(panelH * 0.030); // ~12px
+    bodySize = Math.min(Math.floor(panelH * 0.030), maxBodySize - 4);
     bodyChars = Math.floor(safeTextW / (bodySize * 0.58));
     bodyLines = wrapText(bodyMessage, bodyChars);
   }
@@ -294,11 +298,14 @@ exports.buildZone2Right_QuoteBox = (quote, boxW, boxH, palette = {}, occasion = 
   // Hard cap the text — never allow > 110 chars regardless of GPT output
   const text = (quote || '').substring(0, 110);
 
+  const maxQuoteFontSize = boxH > 400 ? 20 : 24;
+  const initialMaxFontSize = Math.min(Math.floor(boxH * 0.080), maxQuoteFontSize);
+
   const { fontSize, lines, lineGap } = autoFitText(
     text,
     availableW,
     availableH,
-    Math.floor(boxH * 0.080),
+    initialMaxFontSize,
     8,
     1.45
   );
@@ -519,14 +526,21 @@ exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
   const footerBg     = palette.footerBg        || '#16213E';
   const footerAccent = palette.footerTextAccent || '#FFD700';
   const colW         = W / 4;
-  const iconW        = 36;
   const leftPad      = 16;
-  const textXOffset  = iconW + leftPad;
-  const availTextW   = colW - textXOffset - 8;
-  const linesAreaH   = Math.floor(H6 * 0.75);
+  const availTextW   = colW - leftPad - 8;
+
+  // Icon and text layout bounds
+  const iconFontSize  = Math.max(Math.floor(H6 * 0.11), 14);
+  const iconBottomPad = 6;
+  const iconBaselineY = Math.floor(H6 * 0.14) + iconFontSize; // top area only
+  const textStartY    = iconBaselineY + iconBottomPad; // text starts below icon
+  const bottomPad     = Math.floor(H6 * 0.06); // bottom padding
+  const linesAreaH    = H6 - textStartY - bottomPad; // accurate available height for text
 
   // Find shared font size: smallest that fits all columns
-  let sharedFontSize = Math.floor(H6 * 0.095);
+  const isPortraitOrStory = H6 > 220;
+  const maxFooterFont     = isPortraitOrStory ? 14 : 16;
+  let sharedFontSize      = Math.min(Math.floor(H6 * 0.095), maxFooterFont);
   while (sharedFontSize >= 7) {
     const charW    = sharedFontSize * 0.58;
     const maxChars = Math.floor(availTextW / charW);
@@ -550,15 +564,16 @@ exports.buildZone6FooterStrip = (footerColumns = [], W, H6, palette = {}) => {
     const col   = footerColumns[i] || { icon: '★', lines: [], highlight: '' };
     const colX  = i * colW;
     const iconX = colX + leftPad;
-    const textX = colX + textXOffset;
+    const textX = colX + leftPad;
 
-    // Icon
-    content += `<text x="${iconX}" y="${H6 * 0.45}"
+    // Icon — small, top-left of each column
+    content += `<text x="${iconX}" y="${iconBaselineY}"
       font-family="Arial, sans-serif"
-      font-size="${Math.floor(H6 * 0.13)}"
+      font-size="${iconFontSize}"
       fill="${footerAccent}" opacity="0.9">${esc(col.icon || '★')}</text>`;
 
-    let textY = H6 * 0.18;
+    // textY begins at textStartY + sharedFontSize (first baseline)
+    let textY = textStartY + sharedFontSize;
 
     // Regular lines
     (col.lines || []).forEach(line => {

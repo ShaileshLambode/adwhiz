@@ -125,11 +125,19 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   // Priority: GPT-provided > generic fallback
   const palette = (festivalPalette && festivalPalette.panelBg) ? festivalPalette : getDefaultFestivalPalette();
 
+  const RECRAFT_SIZE_MAP = {
+    '1024x1024': '1024x1024',   // Square → Square hero
+    '1024x1365': '1024x1365',   // Portrait → Portrait hero
+    '1365x1024': '1365x1024',   // Landscape → Landscape hero
+    '1024x1536': '1024x1536',   // Story → Tall portrait hero
+  };
+  const recraftImageSize = RECRAFT_SIZE_MAP[size] || '1024x1536';
+
   const recraftPayload = {
     prompt: recraftScenePrompt || buildPrompt(template),
     model: 'recraftv3',
     style: recraftStyle,
-    size: '1024x1536', // Use portrait hero image for best cropping
+    size: recraftImageSize,
     n: 1,
     response_format: 'url',
     controls: {
@@ -161,14 +169,23 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
 
   // 4. Poster layout allocations
   const [W, H] = parseSize(size);
-  const zones = calculateZoneHeights(H);
+  const zones = calculateZoneHeights(H, W);
 
-  const panelW_left = Math.floor(W * 0.46);
+  const isLandscape = W > H;
+  const panelW_left = isLandscape
+    ? Math.floor(W * 0.40)
+    : Math.floor(W * 0.46);
   const panelW_right = W - panelW_left;
 
-  const quoteBoxW = Math.floor(panelW_right * 0.45);
+  const quoteBoxW = isLandscape
+    ? Math.floor(panelW_right * 0.55)
+    : Math.floor(panelW_right * 0.45);
   const quoteBoxH = Math.floor(zones.z2 * 0.78);      // slightly shorter so floating icon fits
   const quoteBoxX = panelW_left + Math.floor(panelW_right * 0.50);
+  const minRightMargin = Math.floor(W * 0.02); // 2% right margin minimum
+  const maxRightEdge = W - minRightMargin;
+  const clampedQuoteBoxX = Math.min(quoteBoxX, maxRightEdge - quoteBoxW);
+
   // Pull quoteBoxY up by 20px so the floating icon above the box is visible within z2
   const quoteBoxY = zones.z1 + Math.floor(zones.z2 * 0.08);
 
@@ -217,7 +234,7 @@ async function runGeneration({ template, logoDoc, overrides, size, stylePreset, 
   composites.push({ input: z2LeftSvg, top: currentY, left: 0 });
 
   // Zone 2 — Right quote box overlay
-  composites.push({ input: z2RightBoxSvg, top: quoteBoxY, left: quoteBoxX });
+  composites.push({ input: z2RightBoxSvg, top: quoteBoxY, left: clampedQuoteBoxX });
   currentY += zones.z2;
 
   // Zone 3 — Values Row
