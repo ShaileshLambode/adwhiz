@@ -1,6 +1,6 @@
 # AdWhiz — AI-Powered Marketing Automation
 
-AdWhiz is a full-stack web application that lets businesses generate professional, branded promotional posters in seconds using AI. Users provide their logo and brand details, choose a festive occasion, and AdWhiz automatically writes marketing copy, generates a thematic background image via Recraft AI, and composites a pixel-perfect multi-zone poster — which can then be published directly to Instagram.
+AdWhiz is a full-stack web application that lets businesses generate professional, branded social media posts in seconds using AI. Users provide their logo and brand details, pick a post type — Festival Promo, Quote, or Offer Announcement — and AdWhiz automatically writes marketing copy, generates a thematic background image via Recraft AI, and composites a pixel-perfect poster — which can then be published directly to Instagram.
 
 ---
 
@@ -10,9 +10,12 @@ AdWhiz is a full-stack web application that lets businesses generate professiona
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
+- [Post Types](#post-types)
 - [How Post Generation Works](#how-post-generation-works)
-  - [The 6-Zone Poster Layout](#the-6-zone-poster-layout)
-  - [Generation Pipeline](#generation-pipeline)
+  - [Festival Promo Post — 6-Zone Layout](#festival-promo-post--6-zone-layout)
+  - [Festival Generation Pipeline](#festival-generation-pipeline)
+  - [Quote Post — Layout & Pipeline](#quote-post--layout--pipeline)
+  - [Offer Announcement — Layout & Pipeline](#offer-announcement--layout--pipeline)
   - [Supported Poster Sizes](#supported-poster-sizes)
 - [Instagram Publishing](#instagram-publishing)
 - [API Reference](#api-reference)
@@ -31,11 +34,11 @@ AdWhiz is a full-stack web application that lets businesses generate professiona
 AdWhiz solves a real pain point for small businesses: creating consistent, professional-looking marketing visuals for festivals, sales, and seasonal occasions is time-consuming and often expensive. AdWhiz automates the entire pipeline:
 
 1. **Brand Setup** — Upload your logo once. AdWhiz extracts your brand colors automatically.
-2. **Occasion Selection** — Pick a festival or occasion (e.g., Diwali, New Year, Summer Sale).
-3. **AI Content Fill** — GPT-4o-mini writes headlines, taglines, values, and feature text tailored to your brand and the occasion.
-4. **Background Generation** — Recraft AI (`recraftv3` model) renders a high-quality, textless festive background scene.
-5. **Poster Compositing** — The server assembles 6 SVG layout zones on top of the background using Sharp, producing a final JPEG.
-6. **Publish or Download** — Share directly to your Instagram Business feed, or download the high-res image.
+2. **Post Type Selection** — From the launcher screen (`/promo-creator`), choose one of three post types: Festival Promo, Quote Post, or Offer Announcement. Each has its own AI-powered wizard and generation flow.
+3. **AI Content Fill** — GPT-4o-mini writes all copy — headlines, quotes, offer text — tailored to your brand, sector, and the chosen occasion.
+4. **Background Generation** — Recraft AI (`recraftv3` model) renders a high-quality, textless background scene matched to the post type and brand.
+5. **Poster Compositing** — The server assembles SVG layout zones on top of the background using Sharp, producing a final JPEG. Zone count and structure differ per post type.
+6. **Publish or Download** — Share directly to your Instagram Business feed (all post types supported), or download the high-res image.
 
 ---
 
@@ -45,10 +48,15 @@ AdWhiz solves a real pain point for small businesses: creating consistent, profe
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                          REACT FRONTEND (Vite)                               │
 │                                                                              │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────────────┐  │
-│  │ PromoCreator│  │GeneratedConent│  │SocialConnect│  │  Auth (Login /    │  │
-│  │  (Wizard UI)│  │  (Gallery)   │  │(Instagram) │  │  Signup / OAuth)  │  │
-│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘  └────────────────────┘  │
+│  ┌──────────────────────────────────────┐  ┌────────────┐  ┌──────────────┐  │
+│  │    PostTypeLauncher (/promo-creator) │  │SocialConnect│  │ Auth (Login/ │  │
+│  │  ┌────────┐ ┌───────┐ ┌──────────┐  │  │(Instagram) │  │  Signup/     │  │
+│  │  │Festival│ │ Quote │ │  Offer   │  │  └─────┬──────┘  │  OAuth)      │  │
+│  │  │Creator │ │Creator│ │ Creator  │  │        │         └──────────────┘  │
+│  │  └────────┘ └───────┘ └──────────┘  │        │                           │
+│  └──────────────────┬───────────────────┘        │                           │
+│                     │  + PromoGallery, GeneratedContent, FavoriteList        │
+│                     └────────────────────────────┘                           │
 │         │                │                 │                                  │
 │         └────────────────┴─────────────────┘                                 │
 │                          │  Axios + JWT                                       │
@@ -57,16 +65,20 @@ AdWhiz solves a real pain point for small businesses: creating consistent, profe
 ┌──────────────────────────▼───────────────────────────────────────────────────┐
 │                      EXPRESS BACKEND (Node.js)                               │
 │                                                                              │
-│  ┌──────────────┐  ┌────────────────┐  ┌────────────────┐  ┌─────────────┐  │
-│  │  UserRoutes  │  │  PromoRoutes   │  │  SocialRoutes  │  │  LogoRoutes │  │
-│  │  (Auth/JWT)  │  │  (Generation)  │  │  (Instagram)   │  │  (Upload)   │  │
-│  └──────┬───────┘  └───────┬────────┘  └───────┬────────┘  └──────┬──────┘  │
+│  ┌────────────┐  ┌───────────┐  ┌───────────┐  ┌──────────────┐  ┌─────────┐ │
+│  │ UserRoutes │  │PromoRoutes│  │QuoteRoutes│  │  OfferRoutes │  │LogoRts  │ │
+│  │ (Auth/JWT) │  │/api/promo │  │/api/quote │  │  /api/offer  │  │/api/logo│ │
+│  └─────┬──────┘  └─────┬─────┘  └─────┬─────┘  └──────┬───────┘  └────┬────┘ │
+│        │               │               │                │               │      │
+│        └───────────────┴───────────────┴────────────────┴───────────────┘      │
+│                                        │  + SocialRoutes /api/social            │
 │         │                  │                    │                   │         │
 │         └──────────────────┴────────────────────┴───────────────────┘         │
 │                            │                                                  │
 │  ┌─────────────────────────▼────────────────────────────────────────────┐    │
 │  │                      Core Services                                    │    │
-│  │  svgBuilder.js  │  posterLayout.js  │  promptBuilder.js  │  tokenRefresher│  │
+│  │  svgBuilder.js  │  posterLayout.js  │  promptBuilder.js              │    │
+│  │  quoteController.js  │  offerController.js  │  tokenRefresher.js     │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────────┘
                            │
@@ -453,7 +465,7 @@ Recraft powers the festive background scenes.
 3. Generate an API key.
 4. Copy the key — this is your `RECRAFT_API_KEY`.
 
-> The app uses the `recraftv3` model.
+> The app uses the `recraftv3` model. Recraft provides a free tier for getting started.
 
 ---
 
@@ -479,6 +491,8 @@ All logos and generated poster images are stored on Cloudinary.
    - **Cloud Name** → `CLOUDINARY_CLOUD_NAME`
    - **API Key** → `CLOUDINARY_API_KEY`
    - **API Secret** → `CLOUDINARY_API_SECRET`
+
+> The free tier (25 credits/month) is sufficient for development.
 
 ---
 
