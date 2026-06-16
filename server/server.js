@@ -6,6 +6,8 @@ const UserRoutes = require("./routes/UserRoutes");
 const LogoRoutes = require("./routes/LogoRoutes");
 const postRoutes = require("./routes/postRoutes");
 const promoRoutes = require("./routes/promoRoutes");
+const quoteRoutes = require("./routes/quoteRoutes");
+const offerRoutes = require("./routes/offerRoutes");
 const { connectDB } = require("./config/db");
 const path = require('path');
 const app = express();
@@ -31,6 +33,9 @@ app.use("/api/post", postRoutes);
 
 // Promotional Image Generation
 app.use("/api/promo", promoRoutes);
+
+app.use("/api/quote", quoteRoutes);
+app.use("/api/offer", offerRoutes);
 
 // Social Media Integration (Instagram)
 const socialRoutes = require("./routes/socialRoutes");
