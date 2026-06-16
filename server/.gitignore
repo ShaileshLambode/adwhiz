@@ -27,3 +27,6 @@ GMAIL_PASS
 OPENAI_API_KEY
 
 ../.idea
+
+# Uploads folder
+uploads/

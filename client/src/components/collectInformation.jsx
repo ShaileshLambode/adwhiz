@@ -67,7 +67,8 @@ const CollectInformation = () => {
                 console.error('Failed to add business:', response.data.message);
             }
         } catch (error) {
-            toast.error('Something went wrong. Please try again.');
+            const serverMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+            toast.error(`Error: ${serverMessage}`);
             console.error('Submit error:', error);
 
             if (error.response) {

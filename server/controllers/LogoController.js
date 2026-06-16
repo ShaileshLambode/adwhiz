@@ -16,14 +16,7 @@ exports.createLogo = async (req, res) => {
       });
     }
 
-    // ✅ Check if a post with the same name already exists
-    const existingPost = await Logo.findOne({ name });
-    if (existingPost) {
-      return res.status(409).json({
-        success: false,
-        message: "A post with this name already exists",
-      });
-    }
+
 
     let imageData = null;
 
