@@ -20,26 +20,36 @@ const POST_TYPES = [
     available: true,
   },
   {
-    id: 'product_showcase',
-    name: 'Product Showcase Post',
-    tagline: 'Highlight your products with AI styling',
-    description: 'A dedicated flow for product-focused posts — custom backgrounds, product highlights, and pricing callouts. Coming in the next sprint.',
-    features: [],
+    id: 'quote',
+    name: 'Quote Post',
+    tagline: 'AI-crafted quotes with beautiful backgrounds',
+    description: 'Generate motivational, brand, or festive quote posts. GPT writes the quote, Recraft creates the background. Ready in seconds.',
+    features: [
+      'GPT writes a quote matched to your theme',
+      'Recraft generates matching abstract background',
+      'Your logo and contact auto-composited',
+      'Direct Instagram publishing',
+    ],
     sampleImageUrl: null,
-    route: null,
-    badge: 'Coming Soon',
-    available: false,
+    route: '/promo-creator/quote',
+    badge: 'Available',
+    available: true,
   },
   {
-    id: 'sale_announcement',
-    name: 'Sale Announcement',
+    id: 'offer',
+    name: 'Offer Announcement',
     tagline: 'Bold discount and offer banners',
-    description: 'Eye-catching sale posts with offer percentages, limited-time callouts, and promotional copy — fully AI-generated.',
-    features: [],
+    description: 'Create eye-catching offer posts for discounts, new services, events, or any business announcement. GPT polishes the copy, you generate.',
+    features: [
+      'Enter your offer details — GPT polishes the copy',
+      'Recraft generates a clean professional background',
+      'Structured 3-zone layout: header, offer, CTA',
+      'Custom accent color for your brand',
+    ],
     sampleImageUrl: null,
-    route: null,
-    badge: 'Coming Soon',
-    available: false,
+    route: '/promo-creator/offer',
+    badge: 'Available',
+    available: true,
   },
 ];
 
@@ -84,8 +94,8 @@ export default function PostTypeLauncher() {
                   <div className="text-center">
                     <div className="text-5xl mb-2">
                       {type.id === 'festival' && '🎊'}
-                      {type.id === 'product_showcase' && '🛍️'}
-                      {type.id === 'sale_announcement' && '🏷️'}
+                      {type.id === 'quote' && '💬'}
+                      {type.id === 'offer' && '🏷️'}
                     </div>
                     <p className="text-xs text-gray-400 font-medium">Sample preview</p>
                   </div>

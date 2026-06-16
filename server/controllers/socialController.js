@@ -133,10 +133,24 @@ exports.publishToInstagram = async (req, res) => {
       return res.status(400).json({ error: 'promoPostId is required' });
     }
 
-    // Get the promo post to get its Cloudinary image URL
-    const promoPost = await PromoPost.findOne({ _id: promoPostId, user: userId });
+    // Get the post to get its Cloudinary image URL (checks PromoPost, QuotePost, and OfferPost)
+    let promoPost = await PromoPost.findOne({ _id: promoPostId, user: userId });
+    let postModelType = 'PromoPost';
+    
+    if (!promoPost) {
+      const QuotePost = require('../models/QuotePost');
+      promoPost = await QuotePost.findOne({ _id: promoPostId, user: userId });
+      postModelType = 'QuotePost';
+    }
+    
+    if (!promoPost) {
+      const OfferPost = require('../models/OfferPost');
+      promoPost = await OfferPost.findOne({ _id: promoPostId, user: userId });
+      postModelType = 'OfferPost';
+    }
+
     if (!promoPost || !promoPost.generatedImageUrl) {
-      return res.status(404).json({ error: 'Promo post not found or has no image' });
+      return res.status(404).json({ error: 'Post not found or has no image' });
     }
 
     // Get the user's connected Instagram account
@@ -202,17 +216,43 @@ exports.publishToInstagram = async (req, res) => {
     );
     const igMediaId = publishRes.data.id;
 
-    // Save the published post ID to PromoPost record
-    await PromoPost.findByIdAndUpdate(promoPostId, {
-      $push: {
-        socialPosts: {
-          platform:       'instagram',
-          externalPostId: igMediaId,
-          caption:        caption || '',
-          publishedAt:    new Date()
+    // Save the published post ID to the correct post record
+    if (postModelType === 'PromoPost') {
+      await PromoPost.findByIdAndUpdate(promoPostId, {
+        $push: {
+          socialPosts: {
+            platform:       'instagram',
+            externalPostId: igMediaId,
+            caption:        caption || '',
+            publishedAt:    new Date()
+          }
         }
-      }
-    });
+      });
+    } else if (postModelType === 'QuotePost') {
+      const QuotePost = require('../models/QuotePost');
+      await QuotePost.findByIdAndUpdate(promoPostId, {
+        $push: {
+          socialPosts: {
+            platform:       'instagram',
+            externalPostId: igMediaId,
+            caption:        caption || '',
+            publishedAt:    new Date()
+          }
+        }
+      });
+    } else if (postModelType === 'OfferPost') {
+      const OfferPost = require('../models/OfferPost');
+      await OfferPost.findByIdAndUpdate(promoPostId, {
+        $push: {
+          socialPosts: {
+            platform:       'instagram',
+            externalPostId: igMediaId,
+            caption:        caption || '',
+            publishedAt:    new Date()
+          }
+        }
+      });
+    }
 
     return res.status(200).json({
       success:   true,
