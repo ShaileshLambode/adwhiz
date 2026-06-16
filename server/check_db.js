@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+dns.setServers(['1.1.1.1', '8.8.8.8']);
 require('dotenv').config({ path: './.env' });
 
 const LogoSchema = new mongoose.Schema({
