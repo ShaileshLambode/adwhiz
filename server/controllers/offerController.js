@@ -6,6 +6,7 @@ const cloudinary  = require('../utils/cloudinary');
 const openai      = require('../utils/openai');
 const Logo        = require('../models/Logo');
 const OfferPost   = require('../models/OfferPost');
+const { processLogo } = require('../utils/logoProcessor');
 
 // ── GPT polishes the offer copy ───────────────────────────────────────────────
 async function generateOfferCopy(businessName, sector, offerHeadline, offerDetails, validity, cta) {
@@ -24,7 +25,7 @@ Return JSON:
   "body": "1-2 sentences of offer detail. Max 100 chars.",
   "validity": "Validity line. Max 30 chars.",
   "cta": "Call to action text. Max 25 chars.",
-  "backgroundPrompt": "Recraft AI background for a ${sector} business offer post. Abstract, clean, professional. No text, no people. Max 50 words.",
+  "backgroundPrompt": "Abstract vector background for a ${sector} business offer. Geometric shapes, clean gradients, professional color palette. NO text, NO people, NO faces, NO realistic photos. Pure abstract graphic design. Max 40 words.",
   "bgStyle": "digital_illustration/flat_design"
 }`;
 
@@ -59,10 +60,27 @@ function buildOfferHeroZone(copy, W, H2, accentColor = '#FFD700') {
   const mid  = W / 2;
   const pad  = Math.floor(W * 0.07);
 
-  const hlSize    = Math.floor(H2 * 0.16);
-  const subSize   = Math.floor(H2 * 0.07);
-  const bodySize  = Math.floor(H2 * 0.055);
-  const validSize = Math.floor(H2 * 0.05);
+  // Scale to IMAGE WIDTH, not zone height, and add pixel-accurate wrapping
+  const hlSize    = Math.floor(W * 0.060);   // ~61px at 1024 — much safer
+  const subSize   = Math.floor(W * 0.032);   // ~33px
+  const bodySize  = Math.floor(W * 0.022);   // ~23px
+  const validSize = Math.floor(W * 0.020);   // ~21px
+
+  // Headline wrapping (pixel-accurate pattern)
+  const hlCharW    = hlSize * 0.65;          // uppercase bold Arial slightly wider
+  const hlMaxChars = Math.floor((W - pad * 2) / hlCharW);
+  const hlWords    = (copy.headline || '').split(' ');
+  const hlLines    = [];
+  let   hlCur      = '';
+  for (const w of hlWords) {
+    if ((hlCur + ' ' + w).trim().length <= hlMaxChars) {
+      hlCur = (hlCur + ' ' + w).trim();
+    } else {
+      if (hlCur) hlLines.push(hlCur);
+      hlCur = w;
+    }
+  }
+  if (hlCur) hlLines.push(hlCur);
 
   // Wrap body
   const bChars = Math.floor((W - pad * 2) / (bodySize * 0.58));
@@ -76,49 +94,51 @@ function buildOfferHeroZone(copy, W, H2, accentColor = '#FFD700') {
 
   let content = '';
 
-  // Gradient overlay for readability
+  // Gradient overlay for readability (reduced opacity)
   content += `<defs>
     <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="rgba(0,0,0,0.65)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.80)"/>
+      <stop offset="0%"   stop-color="rgba(0,0,0,0.40)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.65)"/>
     </linearGradient>
   </defs>
   <rect width="${W}" height="${H2}" fill="url(#heroGrad)"/>`;
 
-  // Decorative star ornaments
-  content += `<text x="${pad}" y="${Math.floor(H2 * 0.22)}"
-    font-family="Arial" font-size="${Math.floor(hlSize * 0.5)}" fill="${accentColor}" opacity="0.7">★</text>
-  <text x="${W - pad - Math.floor(hlSize * 0.4)}" y="${Math.floor(H2 * 0.22)}"
-    font-family="Arial" font-size="${Math.floor(hlSize * 0.5)}" fill="${accentColor}" opacity="0.7">★</text>`;
+  // Headline (multiple lines if wrapped)
+  hlLines.forEach((line, i) => {
+    content += `<text x="${mid}" y="${Math.floor(H2 * 0.20) + (i + 1) * hlSize * 1.1}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${hlSize}" font-weight="900"
+      fill="${accentColor}">${esc(line.toUpperCase())}</text>`;
+  });
 
-  // Headline
-  content += `<text x="${mid}" y="${Math.floor(H2 * 0.22)}"
-    text-anchor="middle" font-family="Arial, sans-serif"
-    font-size="${hlSize}" font-weight="900"
-    fill="${accentColor}">${esc((copy.headline || '').toUpperCase())}</text>`;
+  // Track dynamic Y position after headline lines
+  let currentY = Math.floor(H2 * 0.20) + hlLines.length * hlSize * 1.1 + Math.floor(H2 * 0.04);
 
   // Sub-headline
-  content += `<text x="${mid}" y="${Math.floor(H2 * 0.38)}"
+  content += `<text x="${mid}" y="${currentY}"
     text-anchor="middle" font-family="Arial, sans-serif"
     font-size="${subSize}" font-weight="700" letter-spacing="1"
     fill="#FFFFFF">${esc(copy.subheadline || '')}</text>`;
+  currentY += Math.floor(subSize * 1.8);
 
   // Body lines
-  bLines.forEach((line, i) => {
-    content += `<text x="${mid}" y="${H2 * 0.52 + i * bodySize * 1.5}"
+  bLines.forEach(line => {
+    content += `<text x="${mid}" y="${currentY}"
       text-anchor="middle" font-family="Arial, sans-serif"
       font-size="${bodySize}" fill="rgba(255,255,255,0.88)">${esc(line)}</text>`;
+    currentY += Math.floor(bodySize * 1.6);
   });
+  currentY += Math.floor(H2 * 0.03);
 
   // Validity badge
-  const badgeY = Math.floor(H2 * 0.73);
+  const badgeH = Math.floor(validSize * 2.5);
   const badgeW = Math.floor(W * 0.52);
   const badgeX = Math.floor((W - badgeW) / 2);
-  content += `<rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="${Math.floor(H2 * 0.1)}"
+  content += `<rect x="${badgeX}" y="${currentY}" width="${badgeW}" height="${badgeH}"
     rx="4" fill="${accentColor}" opacity="0.15"/>
-  <rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="${Math.floor(H2 * 0.1)}"
+  <rect x="${badgeX}" y="${currentY}" width="${badgeW}" height="${badgeH}"
     rx="4" fill="none" stroke="${accentColor}" stroke-width="1.2" opacity="0.6"/>
-  <text x="${mid}" y="${badgeY + Math.floor(H2 * 0.066)}"
+  <text x="${mid}" y="${currentY + Math.floor(badgeH * 0.65)}"
     text-anchor="middle" font-family="Arial, sans-serif"
     font-size="${validSize}" fill="${accentColor}" font-weight="600">${esc(copy.validity || '')}</text>`;
 
@@ -159,21 +179,7 @@ exports.generateOfferPost = async (req, res) => {
     );
 
     // 2. Recraft background
-    const bgStyleRaw = copy.bgStyle || 'digital_illustration/flat_design';
-    const VALID_STYLES = {
-      'realistic_image':                    'digital_illustration',
-      'digital_illustration':               'digital_illustration',
-      'digital_illustration/flat_design':   'digital_illustration',
-      'digital_illustration/2d_art_poster': 'digital_illustration/2d_art_poster',
-      'digital_illustration/engraving':     'digital_illustration/engraving_color',
-      'digital_illustration/engraving_color': 'digital_illustration/engraving_color',
-      'digital_illustration/hand_drawn':    'digital_illustration/hand_drawn',
-      'minimalist':                         'digital_illustration',
-      'vintage_poster':                     'digital_illustration/engraving_color',
-      'three_d_render':                     'digital_illustration/handmade_3d',
-      'flat_design':                        'digital_illustration',
-    };
-    const bgStyle = VALID_STYLES[bgStyleRaw] || 'digital_illustration';
+    const bgStyle = 'vector_illustration';   // always for offer posts
 
     const recraftRes = await axios.post(
       'https://external.api.recraft.ai/v1/images/generations',
@@ -183,10 +189,7 @@ exports.generateOfferPost = async (req, res) => {
     const bgUrl = recraftRes.data.data[0].url;
 
     // 3. Download
-    const [bgBuffer, logoBuffer] = await Promise.all([
-      axios.get(bgUrl,              { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
-      axios.get(logoDoc.images.url, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data))
-    ]);
+    const bgBuffer = await axios.get(bgUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
     const { width: W, height: H } = await sharp(bgBuffer).metadata();
     const accent = accentColor || '#FFD700';
@@ -195,7 +198,10 @@ exports.generateOfferPost = async (req, res) => {
     const z2H = H - z1H - z3H;
     const logoW = Math.floor(W * 0.16);
 
-    const resizedLogo = await sharp(logoBuffer).resize({ width: logoW }).toBuffer();
+    const logo = await processLogo(logoDoc.images.url, logoW);
+    const resizedLogo = logo.buffer;
+    const logoH = logo.height;
+
     const z1Svg = buildOfferZone1(logoDoc.website || '', logoDoc.email || '', W, z1H);
     const z2Svg = buildOfferHeroZone(copy, W, z2H, accent);
     const z3Svg = buildOfferCTAStrip(copy.cta || cta || 'Visit Us Today', W, z3H, accent);
@@ -206,7 +212,7 @@ exports.generateOfferPost = async (req, res) => {
         { input: z1Svg,       top: 0,         left: 0 },
         { input: z2Svg,       top: z1H,       left: 0 },
         { input: z3Svg,       top: z1H + z2H, left: 0 },
-        { input: resizedLogo, top: Math.floor((z1H - Math.floor(logoW * 0.5)) / 2), left: 20 }
+        { input: resizedLogo, top: Math.max(0, Math.floor((z1H - logoH) / 2)), left: 20 }
       ])
       .jpeg({ quality: 93 })
       .toBuffer();

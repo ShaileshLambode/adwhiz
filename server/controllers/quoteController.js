@@ -6,6 +6,7 @@ const cloudinary  = require('../utils/cloudinary');
 const openai      = require('../utils/openai');
 const Logo        = require('../models/Logo');
 const QuotePost   = require('../models/QuotePost');
+const { processLogo } = require('../utils/logoProcessor');
 
 // ── GPT generates the quote ───────────────────────────────────────────────────
 async function generateQuoteText(businessName, sector, theme, tone) {
@@ -20,7 +21,7 @@ Return this JSON exactly:
 {
   "quote": "The quote text. Maximum 120 characters. Punchy, memorable, fits one visual.",
   "attribution": "Short attribution line. E.g. '— ${businessName}' or 'By ${businessName}'. Max 30 chars.",
-  "backgroundPrompt": "Recraft AI image prompt for an abstract/textural background that matches this quote's mood. No text, no people, no logos. Flat 2D illustration or atmospheric texture. Max 60 words.",
+  "backgroundPrompt": "Abstract geometric vector background for this quote's mood. Use ONLY: shapes, gradients, patterns, flowing lines, color fields. Absolutely NO human figures, NO faces, NO hands, NO people, NO portraits, NO realistic elements. Pure abstract art suitable as a poster background. Max 50 words.",
   "suggestedStyle": "digital_illustration/flat_design"
 }`;
 
@@ -42,30 +43,44 @@ Return this JSON exactly:
 function buildQuoteOverlay(quote, attribution, W, H, accentColor = '#FFFFFF') {
   const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  // Wrap quote text at ~28 chars per line
-  const words    = quote.split(' ');
-  const lines    = [];
-  let   cur      = '';
+  // Available width for text (80% of image, centered)
+  const availableW  = Math.floor(W * 0.80);
+
+  // Font size: start smaller, fits better on background
+  const quoteSize   = Math.floor(W * 0.046);   // ~47px at 1024 (was 63px)
+  const attribSize  = Math.floor(W * 0.022);   // ~22px (was 27px)
+  const lineGap     = quoteSize * 1.5;
+
+  // Calculate max chars per line from actual pixel width
+  // Arial character average width ≈ fontSize * 0.58 (italic serif slightly wider, use 0.62)
+  const charW       = quoteSize * 0.62;
+  const maxChars    = Math.floor(availableW / charW);
+
+  // Word wrap using pixel-accurate maxChars
+  const words  = quote.split(' ');
+  const lines  = [];
+  let   cur    = '';
   for (const w of words) {
-    if ((cur + ' ' + w).trim().length <= 28) { cur = (cur + ' ' + w).trim(); }
-    else { if (cur) lines.push(cur); cur = w; }
+    if ((cur + ' ' + w).trim().length <= maxChars) {
+      cur = (cur + ' ' + w).trim();
+    } else {
+      if (cur) lines.push(cur);
+      cur = w;
+    }
   }
   if (cur) lines.push(cur);
 
-  const quoteSize = Math.floor(W * 0.062);   // ~63px at 1024
-  const attribSize = Math.floor(W * 0.026);   // ~27px
-  const lineGap    = quoteSize * 1.4;
-  const totalH     = lines.length * lineGap + attribSize * 2.5;
-
-  const startY = Math.floor((H - totalH) / 2);  // vertically centered
-  const midX   = W / 2;
+  const totalH  = lines.length * lineGap + attribSize * 3;
+  const startY  = Math.floor((H - totalH) / 2);
+  const midX    = W / 2;
 
   let content = '';
 
   // Large opening quote mark
-  content += `<text x="${midX}" y="${startY - 10}" text-anchor="middle"
-    font-family="Georgia, serif" font-size="${Math.floor(quoteSize * 2)}"
-    fill="${accentColor}" opacity="0.25">"</text>`;
+  content += `<text x="${midX}" y="${startY - quoteSize * 0.4}"
+    text-anchor="middle" font-family="Georgia, serif"
+    font-size="${Math.floor(quoteSize * 1.8)}"
+    fill="${accentColor}" opacity="0.18">"</text>`;
 
   // Quote lines
   lines.forEach((line, i) => {
@@ -85,8 +100,8 @@ function buildQuoteOverlay(quote, attribution, W, H, accentColor = '#FFFFFF') {
   return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
-        <stop offset="0%"   stop-color="transparent"/>
-        <stop offset="100%" stop-color="rgba(0,0,0,0.45)"/>
+        <stop offset="0%"   stop-color="rgba(0,0,0,0)"/>
+        <stop offset="100%" stop-color="rgba(0,0,0,0.50)"/>
       </radialGradient>
     </defs>
     <rect width="${W}" height="${H}" fill="url(#vignette)"/>
@@ -131,21 +146,7 @@ exports.generateQuotePost = async (req, res) => {
     const quoteText  = customQuote || gptResult.quote;
     const attribution = gptResult.attribution;
     const bgPrompt   = gptResult.backgroundPrompt;
-    const bgStyleRaw = gptResult.suggestedStyle || 'digital_illustration/flat_design';
-    const VALID_STYLES = {
-      'realistic_image':                    'digital_illustration',
-      'digital_illustration':               'digital_illustration',
-      'digital_illustration/flat_design':   'digital_illustration',
-      'digital_illustration/2d_art_poster': 'digital_illustration/2d_art_poster',
-      'digital_illustration/engraving':     'digital_illustration/engraving_color',
-      'digital_illustration/engraving_color': 'digital_illustration/engraving_color',
-      'digital_illustration/hand_drawn':    'digital_illustration/hand_drawn',
-      'minimalist':                         'digital_illustration',
-      'vintage_poster':                     'digital_illustration/engraving_color',
-      'three_d_render':                     'digital_illustration/handmade_3d',
-      'flat_design':                        'digital_illustration',
-    };
-    const bgStyle = VALID_STYLES[bgStyleRaw] || 'digital_illustration';
+    const bgStyle = 'vector_illustration';   // ALWAYS — never digital_illustration for quotes
 
     // 2. Recraft generates the background
     const recraftRes = await axios.post(
@@ -163,16 +164,16 @@ exports.generateQuotePost = async (req, res) => {
     const bgUrl = recraftRes.data.data[0].url;
 
     // 3. Download base image and logo
-    const [bgBuffer, logoBuffer] = await Promise.all([
-      axios.get(bgUrl,                { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data)),
-      axios.get(logoDoc.images.url,   { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data))
-    ]);
+    const bgBuffer = await axios.get(bgUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
     const { width: W, height: H } = await sharp(bgBuffer).metadata();
     const barH    = Math.floor(H * 0.065);
     const logoW   = Math.floor(W * 0.16);
 
-    const resizedLogo = await sharp(logoBuffer).resize({ width: logoW }).toBuffer();
+    const logo = await processLogo(logoDoc.images.url, logoW);
+    const resizedLogo = logo.buffer;
+    const logoH = logo.height;
+
     const quoteSvg    = buildQuoteOverlay(quoteText, attribution, W, H - barH, '#FFFFFF');
     const contactBar  = buildQuoteContactBar(logoDoc.website || '', logoDoc.email || '', W, barH);
 
