@@ -10,8 +10,14 @@ const { processLogo } = require('../utils/logoProcessor');
 
 // ── GPT generates the quote ───────────────────────────────────────────────────
 async function generateQuoteText(businessName, sector, theme, tone) {
-  const systemPrompt = `You are a creative copywriter for ${businessName}, a ${sector} business. 
-Write short, impactful quotes for social media posts. Always respond with ONLY valid JSON.`;
+  const systemPrompt = `You are a creative copywriter AND color-theory expert for ${businessName}, a ${sector} business.
+Write short, impactful quotes for social media posts. Always respond with ONLY valid JSON.
+
+Color rules for quotePalette:
+RULE 1 — cardBg: A solid, rich color matching the theme/tone mood. NEVER white, NEVER near-white, NEVER a pale neutral. Always a deliberate saturated or deep color (e.g. deep teal, warm terracotta, deep plum, forest green, midnight blue).
+RULE 2 — textColor: Must have STRONG contrast against cardBg. If cardBg is dark, use a bright/light color. If cardBg is a mid-tone bright color, use pure white or near-black — whichever contrasts more.
+RULE 3 — accentColor: A complementary highlight color for the attribution line and quote marks. Should feel premium, not clash with cardBg.
+RULE 4 — footerBg: A darker variant of cardBg for the bottom contact bar — always dark enough for white text.`;
 
   const userPrompt = `Generate a social media quote post for this business.
 Theme: "${theme}"
@@ -19,10 +25,15 @@ Tone: "${tone}" (inspirational / witty / warm / bold)
 
 Return this JSON exactly:
 {
-  "quote": "The quote text. Maximum 120 characters. Punchy, memorable, fits one visual.",
-  "attribution": "Short attribution line. E.g. '— ${businessName}' or 'By ${businessName}'. Max 30 chars.",
-  "backgroundPrompt": "Abstract geometric vector background for this quote's mood. Use ONLY: shapes, gradients, patterns, flowing lines, color fields. Absolutely NO human figures, NO faces, NO hands, NO people, NO portraits, NO realistic elements. Pure abstract art suitable as a poster background. Max 50 words.",
-  "suggestedStyle": "digital_illustration/flat_design"
+  "quote": "The quote text. Maximum 100 characters. Punchy, memorable, fits one visual.",
+  "attribution": "Short attribution line. E.g. '— ${businessName}'. Max 30 chars.",
+  "backgroundPrompt": "Abstract decorative background — soft shapes, gradients, bokeh, organic patterns, or subtle texture. NO text, NO readable elements. This will be DIMMED behind a solid card, so it just needs to feel atmospheric, not be a focal illustration. Max 40 words.",
+  "quotePalette": {
+    "cardBg": "hex — solid card background, RULE 1",
+    "textColor": "hex — quote text color, RULE 2",
+    "accentColor": "hex — quote marks and highlights, RULE 3",
+    "footerBg": "hex — bottom contact bar, RULE 4"
+  }
 }`;
 
   const completion = await openai.chat.completions.create({
@@ -32,7 +43,7 @@ Return this JSON exactly:
       { role: 'user',   content: userPrompt }
     ],
     temperature: 0.8,
-    max_tokens: 400,
+    max_tokens: 500,
     response_format: { type: 'json_object' }
   });
 
@@ -40,86 +51,99 @@ Return this JSON exactly:
 }
 
 // ── SVG quote overlay ─────────────────────────────────────────────────────────
-function buildQuoteOverlay(quote, attribution, W, H, accentColor = '#FFFFFF') {
+function buildQuoteOverlay(quote, attribution, W, H, palette = {}) {
   const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  // Available width for text (80% of image, centered)
-  const availableW  = Math.floor(W * 0.80);
+  const cardBg     = palette.cardBg     || '#1A1A2E';
+  const textColor  = palette.textColor  || '#FFFFFF';
+  const accentColor = palette.accentColor || textColor;
 
-  // Font size: start smaller, fits better on background
-  const quoteSize   = Math.floor(W * 0.046);   // ~47px at 1024 (was 63px)
-  const attribSize  = Math.floor(W * 0.022);   // ~22px (was 27px)
-  const lineGap     = quoteSize * 1.5;
+  // Card dimensions: 84% width, vertically centered, with padding
+  const cardW = Math.floor(W * 0.84);
+  const cardX = Math.floor((W - cardW) / 2);
+  const padX  = Math.floor(cardW * 0.10);
+  const availableW = cardW - padX * 2;
 
-  // Calculate max chars per line from actual pixel width
-  // Arial character average width ≈ fontSize * 0.58 (italic serif slightly wider, use 0.62)
-  const charW       = quoteSize * 0.62;
-  const maxChars    = Math.floor(availableW / charW);
+  const quoteSize  = Math.floor(W * 0.044);
+  const attribSize = Math.floor(W * 0.021);
+  const lineGap    = quoteSize * 1.5;
 
-  // Word wrap using pixel-accurate maxChars
-  const words  = quote.split(' ');
-  const lines  = [];
-  let   cur    = '';
+  const charW    = quoteSize * 0.60;
+  const maxChars = Math.floor(availableW / charW);
+
+  const words = quote.split(' ');
+  const lines = [];
+  let   cur   = '';
   for (const w of words) {
-    if ((cur + ' ' + w).trim().length <= maxChars) {
-      cur = (cur + ' ' + w).trim();
-    } else {
-      if (cur) lines.push(cur);
-      cur = w;
-    }
+    if ((cur + ' ' + w).trim().length <= maxChars) cur = (cur + ' ' + w).trim();
+    else { if (cur) lines.push(cur); cur = w; }
   }
   if (cur) lines.push(cur);
 
-  const totalH  = lines.length * lineGap + attribSize * 3;
-  const startY  = Math.floor((H - totalH) / 2);
-  const midX    = W / 2;
+  // Card height: padding + quote mark + lines + attribution + padding
+  const topPad     = Math.floor(quoteSize * 1.4);
+  const quoteBlockH = lines.length * lineGap;
+  const attribBlockH = attribSize * 2.2;
+  const bottomPad  = Math.floor(quoteSize * 0.8);
+  const cardH = topPad + quoteBlockH + attribBlockH + bottomPad;
+
+  const cardY = Math.floor((H - cardH) / 2);
+  const midX  = W / 2;
 
   let content = '';
 
-  // Large opening quote mark
-  content += `<text x="${midX}" y="${startY - quoteSize * 0.4}"
-    text-anchor="middle" font-family="Georgia, serif"
-    font-size="${Math.floor(quoteSize * 1.8)}"
-    fill="${accentColor}" opacity="0.18">"</text>`;
+  // Quote mark — large, positioned INSIDE the card, top-left of text block
+  content += `<text x="${cardX + padX}" y="${cardY + Math.floor(quoteSize * 1.1)}"
+    font-family="Georgia, serif" font-size="${Math.floor(quoteSize * 2.2)}"
+    fill="${accentColor}" opacity="0.35">"</text>`;
 
-  // Quote lines
-  lines.forEach((line, i) => {
-    content += `<text x="${midX}" y="${startY + (i + 1) * lineGap}"
+  // Quote lines — centered within card
+  let textY = cardY + topPad;
+  lines.forEach(line => {
+    content += `<text x="${midX}" y="${textY}"
       text-anchor="middle" font-family="Georgia, serif"
       font-size="${quoteSize}" font-weight="700" font-style="italic"
-      fill="${accentColor}">${esc(line)}</text>`;
+      fill="${textColor}">${esc(line)}</text>`;
+    textY += lineGap;
   });
 
+  // Divider line above attribution
+  textY += Math.floor(attribSize * 0.3);
+  content += `<line x1="${midX - 30}" y1="${textY}" x2="${midX + 30}" y2="${textY}"
+    stroke="${accentColor}" stroke-width="1.5" opacity="0.6"/>`;
+  textY += Math.floor(attribSize * 1.6);
+
   // Attribution
-  const attribY = startY + (lines.length + 1) * lineGap + attribSize;
-  content += `<text x="${midX}" y="${attribY}"
+  content += `<text x="${midX}" y="${textY}"
     text-anchor="middle" font-family="Arial, sans-serif"
-    font-size="${attribSize}" font-weight="600" letter-spacing="2"
-    fill="${accentColor}" opacity="0.85">${esc(attribution.toUpperCase())}</text>`;
+    font-size="${attribSize}" font-weight="700" letter-spacing="2"
+    fill="${accentColor}">${esc(attribution.toUpperCase())}</text>`;
 
   return Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
-        <stop offset="0%"   stop-color="rgba(0,0,0,0)"/>
-        <stop offset="100%" stop-color="rgba(0,0,0,0.50)"/>
-      </radialGradient>
+      <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="rgba(0,0,0,0.35)"/>
+      </filter>
     </defs>
-    <rect width="${W}" height="${H}" fill="url(#vignette)"/>
+    <rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}"
+      rx="18" fill="${cardBg}" opacity="0.94" filter="url(#cardShadow)"/>
     ${content}
   </svg>`);
 }
 
-// ── Contact bar (bottom) ──────────────────────────────────────────────────────
-function buildQuoteContactBar(website, email, W, barH) {
-  const esc   = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fontSize = Math.floor(barH * 0.32);
-  const contact  = [website, email].filter(Boolean).join('  ·  ');
+function buildQuoteContactBar(website, email, W, barH, footerBg = '#1A1A2E') {
+  const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fontSize = Math.floor(barH * 0.34);
+
+  // Always show something — fallback text if both are empty
+  const contact = [website, email].filter(Boolean).join('   ·   ') || 'Follow us for more updates';
 
   return Buffer.from(`<svg width="${W}" height="${barH}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${barH}" fill="rgba(0,0,0,0.55)"/>
-    <text x="${W/2}" y="${Math.floor(barH * 0.65)}"
+    <rect width="${W}" height="${barH}" fill="${footerBg}"/>
+    <text x="${W/2}" y="${Math.floor(barH * 0.66)}"
       text-anchor="middle" font-family="Arial, sans-serif"
-      font-size="${fontSize}" fill="rgba(255,255,255,0.85)">${esc(contact)}</text>
+      font-size="${fontSize}" font-weight="500"
+      fill="rgba(255,255,255,0.92)">${esc(contact)}</text>
   </svg>`);
 }
 
@@ -138,47 +162,43 @@ exports.generateQuotePost = async (req, res) => {
       return res.status(404).json({ error: 'Logo not found' });
     }
 
-    // 1. GPT generates quote text + background prompt
     const gptResult = await generateQuoteText(
       logoDoc.name, logoDoc.sector || 'business', theme, tone || 'inspirational'
     );
 
-    const quoteText  = customQuote || gptResult.quote;
+    const quoteText   = customQuote || gptResult.quote;
     const attribution = gptResult.attribution;
-    const bgPrompt   = gptResult.backgroundPrompt;
-    const bgStyle = 'vector_illustration';   // ALWAYS — never digital_illustration for quotes
+    const bgPrompt     = gptResult.backgroundPrompt;
+    const palette      = gptResult.quotePalette || {
+      cardBg: '#1A1A2E', textColor: '#FFFFFF', accentColor: '#FFD700', footerBg: '#16213E'
+    };
+    const bgStyle = 'vector_illustration';
 
-    // 2. Recraft generates the background
     const recraftRes = await axios.post(
       'https://external.api.recraft.ai/v1/images/generations',
-      {
-        prompt: bgPrompt,
-        model:  'recraftv3',
-        style:  bgStyle,
-        size,
-        n: 1,
-        response_format: 'url'
-      },
+      { prompt: bgPrompt, model: 'recraftv3', style: bgStyle, size, n: 1, response_format: 'url' },
       { headers: { Authorization: `Bearer ${process.env.RECRAFT_API_KEY}` } }
     );
     const bgUrl = recraftRes.data.data[0].url;
 
-    // 3. Download base image and logo
     const bgBuffer = await axios.get(bgUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
     const { width: W, height: H } = await sharp(bgBuffer).metadata();
-    const barH    = Math.floor(H * 0.065);
-    const logoW   = Math.floor(W * 0.16);
+    const barH  = Math.floor(H * 0.07);
+    const logoW = Math.floor(W * 0.16);
 
     const logo = await processLogo(logoDoc.images.url, logoW);
     const resizedLogo = logo.buffer;
-    const logoH = logo.height;
 
-    const quoteSvg    = buildQuoteOverlay(quoteText, attribution, W, H - barH, '#FFFFFF');
-    const contactBar  = buildQuoteContactBar(logoDoc.website || '', logoDoc.email || '', W, barH);
+    // Dim the AI background slightly so the card pops more, regardless of palette
+    const dimmedBg = await sharp(bgBuffer)
+      .modulate({ brightness: 0.85, saturation: 0.9 })
+      .toBuffer();
 
-    // 4. Composite: background → vignette+quote overlay → contact bar → logo
-    const finalBuffer = await sharp(bgBuffer)
+    const quoteSvg   = buildQuoteOverlay(quoteText, attribution, W, H - barH, palette);
+    const contactBar = buildQuoteContactBar(logoDoc.website || '', logoDoc.email || '', W, barH, palette.footerBg);
+
+    const finalBuffer = await sharp(dimmedBg)
       .composite([
         { input: quoteSvg,    top: 0,       left: 0 },
         { input: contactBar,  top: H - barH, left: 0 },
