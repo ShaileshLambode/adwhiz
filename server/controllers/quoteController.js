@@ -131,19 +131,40 @@ function buildQuoteOverlay(quote, attribution, W, H, palette = {}) {
   </svg>`);
 }
 
-function buildQuoteContactBar(website, email, W, barH, footerBg = '#1A1A2E') {
+function buildQuoteContactBar(website, email, W, barH, palette = {}) {
   const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const fontSize = Math.floor(barH * 0.34);
+  const footerBg     = palette.footerBg     || '#1A1A2E';
+  const accentColor  = palette.accentColor  || '#FFD700';
+  const fontSize     = Math.floor(barH * 0.30);
 
-  // Always show something — fallback text if both are empty
-  const contact = [website, email].filter(Boolean).join('   ·   ') || 'Follow us for more updates';
+  const hasWebsite = !!website;
+  const hasEmail   = !!email;
+  const hasBoth    = hasWebsite && hasEmail;
+
+  let content = '';
+
+  // Top accent line — subtle separator matching the card's accent color
+  content += `<rect x="0" y="0" width="${W}" height="2" fill="${accentColor}" opacity="0.5"/>`;
+
+  if (hasBoth) {
+    const combinedText = `🌐  ${website}     ✉  ${email}`;
+    // Render as ONE text element, centered — icons inline as unicode chars
+    content += `<text x="${W/2}" y="${Math.floor(barH * 0.62)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${fontSize}" font-weight="500"
+      fill="rgba(255,255,255,0.92)">${esc(combinedText)}</text>`;
+  } else {
+    // Single line — fallback or single contact method
+    const contact = website || email || 'Follow us for more updates';
+    content += `<text x="${W/2}" y="${Math.floor(barH * 0.62)}"
+      text-anchor="middle" font-family="Arial, sans-serif"
+      font-size="${fontSize}" font-weight="500"
+      fill="rgba(255,255,255,0.92)">${esc(contact)}</text>`;
+  }
 
   return Buffer.from(`<svg width="${W}" height="${barH}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${barH}" fill="${footerBg}"/>
-    <text x="${W/2}" y="${Math.floor(barH * 0.66)}"
-      text-anchor="middle" font-family="Arial, sans-serif"
-      font-size="${fontSize}" font-weight="500"
-      fill="rgba(255,255,255,0.92)">${esc(contact)}</text>
+    ${content}
   </svg>`);
 }
 
@@ -184,7 +205,7 @@ exports.generateQuotePost = async (req, res) => {
     const bgBuffer = await axios.get(bgUrl, { responseType: 'arraybuffer' }).then(r => Buffer.from(r.data));
 
     const { width: W, height: H } = await sharp(bgBuffer).metadata();
-    const barH  = Math.floor(H * 0.07);
+    const barH  = Math.floor(H * 0.075);
     const logoW = Math.floor(W * 0.16);
 
     const logo = await processLogo(logoDoc.images.url, logoW);
@@ -196,7 +217,7 @@ exports.generateQuotePost = async (req, res) => {
       .toBuffer();
 
     const quoteSvg   = buildQuoteOverlay(quoteText, attribution, W, H - barH, palette);
-    const contactBar = buildQuoteContactBar(logoDoc.website || '', logoDoc.email || '', W, barH, palette.footerBg);
+    const contactBar = buildQuoteContactBar(logoDoc.website || '', logoDoc.email || '', W, barH, palette);
 
     const finalBuffer = await sharp(dimmedBg)
       .composite([
