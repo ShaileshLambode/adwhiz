@@ -45,6 +45,10 @@ const SideBar = () => {
                     <NavLink to="/settings/social" className="flex items-center gap-3 text-md p-3">
                         Social Accounts
                     </NavLink>
+
+                    <NavLink to="/settings/billing" className="flex items-center gap-3 text-md p-3">
+                        Billing &amp; Plan
+                    </NavLink>
                 </div>
 
                 <button

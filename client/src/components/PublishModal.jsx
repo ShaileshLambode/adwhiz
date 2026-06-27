@@ -42,13 +42,19 @@ export default function PublishModal({ post, onClose }) {
       setResult({ success: true, message: res.data.message });
       toast.success('Successfully published to Instagram!');
     } catch (err) {
-      const msg = err?.response?.data?.error || 'Publishing failed';
+      const msg = err?.response?.data?.message || err?.response?.data?.error || 'Publishing failed';
       const needsReconnect = err?.response?.data?.needsReconnect;
-      setResult({ success: false, message: msg, needsReconnect });
+      const needsUpgrade = err?.response?.data?.code === 'FEATURE_NOT_AVAILABLE';
+      setResult({ success: false, message: msg, needsReconnect, needsUpgrade });
       toast.error(msg);
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handleGoToPricing = () => {
+    onClose();
+    navigate('/pricing');
   };
 
   const handleGoToSettings = () => {
@@ -186,6 +192,14 @@ export default function PublishModal({ post, onClose }) {
                       className="mt-2 text-xs font-bold underline text-red-700 hover:text-red-800 cursor-pointer"
                     >
                       Reconnect Instagram Account
+                    </button>
+                  )}
+                  {result.needsUpgrade && (
+                    <button 
+                      onClick={handleGoToPricing}
+                      className="mt-2 text-xs font-bold underline text-red-700 hover:text-red-800 cursor-pointer"
+                    >
+                      Upgrade Your Plan
                     </button>
                   )}
                 </>

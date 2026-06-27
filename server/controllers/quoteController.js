@@ -7,6 +7,8 @@ const openai      = require('../utils/openai');
 const Logo        = require('../models/Logo');
 const QuotePost   = require('../models/QuotePost');
 const { processLogo } = require('../utils/logoProcessor');
+const { applyWatermark } = require('../utils/watermark');
+const { incrementUsage } = require('../middleware/usageMiddleware');
 
 // ── GPT generates the quote ───────────────────────────────────────────────────
 async function generateQuoteText(businessName, sector, theme, tone) {
@@ -228,6 +230,10 @@ exports.generateQuotePost = async (req, res) => {
       .jpeg({ quality: 93 })
       .toBuffer();
 
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalBuffer)
+      : finalBuffer;
+
     // 5. Upload to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'quote_posts', resource_type: 'image' },
@@ -246,10 +252,12 @@ exports.generateQuotePost = async (req, res) => {
         });
         await post.save();
 
+        await incrementUsage(userId);
+
         return res.status(201).json({ message: 'Quote post created!', post });
       }
     );
-    streamifier.createReadStream(finalBuffer).pipe(uploadStream);
+    streamifier.createReadStream(outputBuffer).pipe(uploadStream);
 
   } catch (err) {
     console.error('Quote generation error:', err?.response?.data || err.message);

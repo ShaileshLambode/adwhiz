@@ -7,6 +7,7 @@ const {
   publishToInstagram,
 } = require('../controllers/socialController');
 const { userMiddleware } = require('../middleware/UserMiddleware');
+const { requireFeature } = require('../middleware/planFeatureMiddleware');
 
 const router = express.Router();
 
@@ -19,6 +20,6 @@ router.get('/account',               userMiddleware, getConnectedAccount);
 router.delete('/disconnect',         userMiddleware, disconnectAccount);
 
 // Publishing
-router.post('/publish/instagram',    userMiddleware, publishToInstagram);
+router.post('/publish/instagram',    userMiddleware, requireFeature('instagramPublishing'), publishToInstagram);
 
 module.exports = router;

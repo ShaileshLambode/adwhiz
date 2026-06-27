@@ -23,9 +23,11 @@ import SocialConnect from './pages/SocialConnect'
 import PostTypeLauncher from './pages/PostTypeLauncher'
 import QuoteCreator from './pages/QuoteCreator'
 import OfferCreator from './pages/OfferCreator'
+import Pricing from './pages/Pricing'
+import BillingSettings from './pages/BillingSettings'
 
 
-const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-creator/festival', '/promo-creator/quote', '/promo-creator/offer', '/promo-gallery', '/settings/social']
+const LayoutRoutes = ['/home', '/generatedcontent', '/postready', '/favoritelist', '/promo-creator', '/promo-creator/festival', '/promo-creator/quote', '/promo-creator/offer', '/promo-gallery', '/settings/social', '/pricing', '/settings/billing']
 
 function AppLayout() {
   const location = useLocation()
@@ -55,6 +57,8 @@ function AppLayout() {
             <Route path="/promo-creator/offer" element={<ProtectedRoute><OfferCreator /></ProtectedRoute>} />
             <Route path="/promo-gallery" element={<ProtectedRoute><PromoGallery /></ProtectedRoute>} />
             <Route path="/settings/social" element={<ProtectedRoute><SocialConnect /></ProtectedRoute>} />
+            <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
+            <Route path="/settings/billing" element={<ProtectedRoute><BillingSettings /></ProtectedRoute>} />
           </Routes>
         </div>
         <ToastContainer />

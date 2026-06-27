@@ -20,6 +20,8 @@ const {
 } = require("../utils/svgBuilder");
 const { parseSize, calculateZoneHeights } = require("../utils/posterLayout");
 const { getDefaultFestivalPalette } = require("../utils/festivalPalettes");
+const { applyWatermark } = require("../utils/watermark");
+const { incrementUsage } = require("../middleware/usageMiddleware");
 
 
 // ─── Logo background removal (unchanged — works fine) ────────────────────────
@@ -365,6 +367,11 @@ exports.generatePromo = async (req, res) => {
       festivalPalette
     });
 
+    // Free-plan output carries a watermark; Basic/Pro do not.
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalImageBuffer)
+      : finalImageBuffer;
+
     // Upload to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'promo_posts', resource_type: 'image' },
@@ -384,10 +391,14 @@ exports.generatePromo = async (req, res) => {
           generatedImageUrl: result.secure_url,
         });
         await newPromoPost.save();
+
+        // Only counts toward the monthly quota after a successful generation.
+        await incrementUsage(userId);
+
         return res.status(201).json({ message: 'Promo post created successfully!', promoPost: newPromoPost });
       }
     );
-    streamifier.createReadStream(finalImageBuffer).pipe(uploadStream);
+    streamifier.createReadStream(outputBuffer).pipe(uploadStream);
 
   } catch (error) {
     console.error('Generate promo error:', error?.response?.data || error.message);
@@ -451,6 +462,10 @@ exports.regeneratePromo = async (req, res) => {
       festivalPalette
     });
 
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalImageBuffer)
+      : finalImageBuffer;
+
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'promo_posts', resource_type: 'image' },
       async (error, result) => {
@@ -471,10 +486,12 @@ exports.regeneratePromo = async (req, res) => {
         existingPost.generatedImageUrl = result.secure_url;
         await existingPost.save();
 
+        await incrementUsage(userId);
+
         return res.status(200).json({ message: 'Promo post regenerated successfully!', promoPost: existingPost });
       }
     );
-    streamifier.createReadStream(finalImageBuffer).pipe(uploadStream);
+    streamifier.createReadStream(outputBuffer).pipe(uploadStream);
 
   } catch (error) {
     console.error('Regenerate promo error:', error?.response?.data || error.message);
