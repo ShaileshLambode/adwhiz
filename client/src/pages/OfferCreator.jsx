@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { FaInstagram } from 'react-icons/fa';
 import PublishModal from '../components/PublishModal';
+import { handlePlanGateError } from '../utils/planGateError';
 
 const COLOR_CHIPS = [
   { value: '#FFD700', label: 'Gold 💛' },
@@ -118,7 +119,9 @@ export default function OfferCreator() {
       }
     } catch (err) {
       console.error("Error generating offer post:", err);
-      toast.error(err.response?.data?.error || "Error during generation.");
+      if (!handlePlanGateError(err, navigate)) {
+        toast.error(err.response?.data?.error || err.response?.data?.message || "Error during generation.");
+      }
     } finally {
       setIsGenerating(false);
       setGenerationProgress("");

@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import useScreenSize from '../hooks/useScreenSize';
+import { handlePlanGateError } from '../utils/planGateError';
 
 const Home = () => {
   const { isModalOpen, setIsModalOpen,
@@ -200,8 +201,10 @@ const Home = () => {
         toast.error(`Failed: ${response.data.message}`);
       }
     } catch (error) {
-      toast.error('Something went wrong');
       console.error(error);
+      if (!handlePlanGateError(error, navigate)) {
+        toast.error(error.response?.data?.message || 'Something went wrong');
+      }
     }
   };
 
@@ -346,6 +349,9 @@ const Home = () => {
       console.log(backgroundImageUrl);
     } catch (err) {
       console.error("Error submitting post:", err.response?.data || err.message);
+      if (!handlePlanGateError(err, navigate)) {
+        toast.error(err.response?.data?.error || err.response?.data?.message || "Failed to create post.");
+      }
     } finally {
       setLoading(false);
     }

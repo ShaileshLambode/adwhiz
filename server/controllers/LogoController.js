@@ -1,6 +1,8 @@
 const Logo = require("../models/Logo");
 const cloudinary = require("../utils/cloudinary");
 const fs = require("fs");
+const User = require("../models/User");
+const { getPlan } = require("../config/plans");
 
 
 // Create Logo
@@ -13,6 +15,19 @@ exports.createLogo = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Name and address are required",
+      });
+    }
+
+    // Enforce plan-based brand limit (Free/Basic: 1 brand, Pro: unlimited)
+    const userDoc = await User.findById(user);
+    const plan = getPlan(userDoc?.plan);
+    const existingBrandCount = await Logo.countDocuments({ user });
+
+    if (existingBrandCount >= plan.maxBrands) {
+      return res.status(403).json({
+        success: false,
+        code: "BRAND_LIMIT_REACHED",
+        message: `Your ${plan.name} plan allows up to ${plan.maxBrands} brand${plan.maxBrands === 1 ? '' : 's'}. Upgrade to Pro for unlimited brands.`,
       });
     }
 

@@ -7,6 +7,8 @@ const openai      = require('../utils/openai');
 const Logo        = require('../models/Logo');
 const OfferPost   = require('../models/OfferPost');
 const { processLogo } = require('../utils/logoProcessor');
+const { applyWatermark } = require('../utils/watermark');
+const { incrementUsage } = require('../middleware/usageMiddleware');
 
 // ── GPT polishes the offer copy ───────────────────────────────────────────────
 async function generateOfferCopy(businessName, sector, offerHeadline, offerDetails, validity, cta) {
@@ -262,6 +264,10 @@ exports.generateOfferPost = async (req, res) => {
       .jpeg({ quality: 93 })
       .toBuffer();
 
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalBuffer)
+      : finalBuffer;
+
     // 5. Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'offer_posts', resource_type: 'image' },
@@ -273,10 +279,13 @@ exports.generateOfferPost = async (req, res) => {
           generatedImageUrl: result.secure_url
         });
         await post.save();
+
+        await incrementUsage(userId);
+
         return res.status(201).json({ message: 'Offer post created!', post });
       }
     );
-    streamifier.createReadStream(finalBuffer).pipe(uploadStream);
+    streamifier.createReadStream(outputBuffer).pipe(uploadStream);
 
   } catch (err) {
     console.error('Offer generation error:', err?.response?.data || err.message);

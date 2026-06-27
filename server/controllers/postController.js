@@ -6,6 +6,8 @@ const axios = require("axios");
 const sharp = require("sharp");
 const streamifier = require("streamifier");
 const path = require("path");
+const { applyWatermark } = require("../utils/watermark");
+const { incrementUsage } = require("../middleware/usageMiddleware");
 
 
 function getValidSize(postType) {
@@ -116,6 +118,10 @@ Image should match type: ${postType}. Description: ${description}.`;
       .composite([{ input: resizedLogoBuffer, top: 20, left: 20 }])
       .toBuffer();
 
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalImageBuffer)
+      : finalImageBuffer;
+
     // Upload to Cloudinary
     cloudinary.uploader.upload_stream(
       { folder: "posts", resource_type: "image" },
@@ -141,12 +147,14 @@ Image should match type: ${postType}. Description: ${description}.`;
 
         await newPost.save();
 
+        await incrementUsage(userId);
+
         return res.status(201).json({
           message: "Post created successfully!",
           post: newPost,
         });
       }
-    ).end(finalImageBuffer);
+    ).end(outputBuffer);
 
   } catch (error) {
     console.error("Create post error:", error?.response?.data || error.message);
@@ -256,6 +264,10 @@ Image should match type: ${postType}. Description: ${description}.`;
       .composite([{ input: resizedLogoBuffer, top: 20, left: 20 }])
       .toBuffer();
 
+    const outputBuffer = req.userPlan?.watermark
+      ? await applyWatermark(finalImageBuffer)
+      : finalImageBuffer;
+
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: "posts", resource_type: "image" },
       async (error, result) => {
@@ -287,6 +299,8 @@ Image should match type: ${postType}. Description: ${description}.`;
 
         await post.save();
 
+        await incrementUsage(userId);
+
         res.status(200).json({
           message: "Post image regenerated successfully!",
           post,
@@ -294,7 +308,7 @@ Image should match type: ${postType}. Description: ${description}.`;
       }
     );
 
-    streamifier.createReadStream(finalImageBuffer).pipe(uploadStream);
+    streamifier.createReadStream(outputBuffer).pipe(uploadStream);
   } catch (error) {
     console.error("Regenerate post error:", error?.response?.data || error.message);
     res.status(500).json({ error: "Server error while regenerating post" });
